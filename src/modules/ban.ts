@@ -19,7 +19,7 @@ export const validateServiceBanRecord = async (
     // 현재 시각이 expireAt 보다 작고, 본인인 경우(ban의 userId가 userId랑 같은 경우) 중 serviceName이 "service"인 record를 모두 가져옴
     const bans = await banModel
       .find({
-        userId: userId.id,
+        userUid: userId.id,
         expireAt: {
           $gte: req.timestamp,
         },

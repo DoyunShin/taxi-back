@@ -13,7 +13,11 @@ const searchInviterHandler = async (req, res) => {
     const inviterStatus = await eventStatusModel
       .findById(req.params.inviter)
       .lean();
-    if (!inviterStatus || !inviterStatus.isInviteUrlEnabled)
+    if (
+      !inviterStatus ||
+      inviterStatus.isBanned ||
+      !inviterStatus.isInviteUrlEnabled
+    )
       return res
         .status(400)
         .json({ error: "Invites/search : invalid inviter" });

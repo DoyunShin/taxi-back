@@ -84,16 +84,16 @@ app.use("/docs", docsRouter);
 // [Middleware] API 요청에 대하여 Ban 여부 검증
 app.use(banMiddleware);
 
-// [Router] 이벤트 전용 라우터입니다.
-if (eventConfig) {
-  app.use(`/events/${eventConfig.mode}`, lotteryRouter);
-}
-
 // [Router] 이메일 수신 확인은 origin 검사 거치지 않기
 app.use("/emails", emailRouter);
 
 // [Middleware] 모든 API 요청에 대하여 origin 검증
 app.use(originValidatorMiddleware);
+
+// [Router] 이벤트 전용 라우터입니다.
+if (eventConfig) {
+  app.use(`/events/${eventConfig.mode}`, lotteryRouter);
+}
 
 // [Router] APIs
 app.use("/auth", authRouter);

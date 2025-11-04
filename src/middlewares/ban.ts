@@ -1,12 +1,11 @@
 import type { RequestHandler } from "express";
-
 import { validateServiceBanRecord } from "@/modules/ban";
-
+import type { Ban } from "@/types/mongo";
 import logger from "@/modules/logger";
 
 type IsBannedCheck = {
   url: string;
-  value: string;
+  value: Ban["serviceName"];
 };
 
 const testBanArray: IsBannedCheck[] = [
@@ -31,7 +30,7 @@ const banMiddleware: RequestHandler = async (req, res, next) => {
       logger.info(
         `Banned at ${req.originalUrl}, banErrorMessage: ${banErrorMessage}`
       );
-      return res.status(400).json({
+      return res.status(403).json({
         error: banErrorMessage,
       });
     }

@@ -298,7 +298,7 @@ export const getBanRecordHandler: RequestHandler = async (req, res) => {
     // 본인인 경우(ban의 userId가 userId랑 같은 경우)의 record를 모두 가져옴
     const result = await banModel
       .find({
-        userId: req.userUid,
+        userUid: req.userUid,
       })
       .sort({ expireAt: -1 });
     if (!result)
