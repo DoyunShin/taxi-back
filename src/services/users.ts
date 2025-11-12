@@ -81,10 +81,12 @@ export const editNicknameHandler: RequestHandler = async (req, res) => {
 
     if (result) {
       // 이벤트 코드입니다.
+      /*
       await contracts?.completeNicknameChangingQuest(
         req.userOid,
         req.timestamp
       );
+      */
 
       return res
         .status(200)
@@ -110,12 +112,13 @@ export const editAccountHandler: RequestHandler = async (req, res) => {
 
     if (result) {
       // 이벤트 코드입니다.
+      /*
       await contracts?.completeAccountChangingQuest(
         req.userOid,
         req.timestamp,
         newAccount
       );
-
+      */
       return res
         .status(200)
         .send("Users/editAccount : edit user account successful");
@@ -240,20 +243,10 @@ export const editProfileImgGetPUrlHandler: RequestHandler = async (
         .send("Users/editProfileImg/getPUrl : internal server error");
     }
     const key = `profile-img/${user._id}`;
-    aws.getUploadPUrlPost(key, type, (err, data) => {
-      if (err) {
-        return res
-          .status(500)
-          .send("Users/editProfileImg/getPUrl : internal server error");
-      }
-      data.fields["Content-Type"] = type;
-      data.fields["key"] = key;
-      return res.json({
-        url: data.url,
-        fields: data.fields,
-      });
-    });
-  } catch (e) {
+    const data = await aws.getUploadPUrlPost(key, type);
+    return res.json({ url: data });
+  } catch (err) {
+    logger.error(err);
     return res
       .status(500)
       .send("Users/editProfileImg/getPUrl : internal server error");
@@ -271,30 +264,30 @@ export const editProfileImgDoneHandler: RequestHandler = async (req, res) => {
         .status(500)
         .send("Users/editProfileImg/done : internal server error");
     }
+
     const key = `profile-img/${user._id}`;
-    aws.foundObject(key, async (err) => {
-      if (err) {
-        logger.error(err);
-        return res
-          .status(500)
-          .send("Users/editProfileImg/done : internal server error");
-      }
-      const userAfter = await userModel.findOneAndUpdate(
-        { _id: req.userOid, withdraw: false },
-        { profileImageUrl: aws.getS3Url(`/${key}?token=${req.timestamp}`) },
-        { new: true }
-      );
-      if (!userAfter) {
-        return res
-          .status(500)
-          .send("Users/editProfileImg/done : internal server error");
-      }
-      return res.json({
-        result: true,
-        profileImageUrl: userAfter.profileImageUrl,
-      });
+    if (!(await aws.foundObject(key))) {
+      return res
+        .status(400)
+        .send("Users/editProfileImg/done : no such image uploaded");
+    }
+
+    const userAfter = await userModel.findOneAndUpdate(
+      { _id: req.userOid, withdraw: false },
+      { profileImageUrl: aws.getS3Url(`/${key}?token=${req.timestamp}`) },
+      { new: true }
+    );
+    if (!userAfter) {
+      return res
+        .status(500)
+        .send("Users/editProfileImg/done : internal server error");
+    }
+    return res.json({
+      result: true,
+      profileImageUrl: userAfter.profileImageUrl,
     });
-  } catch (e) {
+  } catch (err) {
+    logger.error(err);
     return res
       .status(500)
       .send("Users/editProfileImg/done : internal server error");
@@ -336,6 +329,7 @@ export const resetProfileImgHandler: RequestHandler = async (req, res) => {
       .status(200)
       .send("Users/resetProfileImg : reset user profile image successful");
   } catch (err) {
+    logger.error(err);
     return res
       .status(500)
       .send("Users/resetProfileImg : internal server error");
@@ -354,6 +348,7 @@ export const getBanRecordHandler: RequestHandler = async (req, res) => {
       return res.status(500).send("Users/getBanRecord : internal server error");
     return res.status(200).json(result);
   } catch (err) {
+    logger.error(err);
     return res.status(500).send("Users/getBanRecord : internal server error");
   }
 };
@@ -395,8 +390,9 @@ export const withdrawHandler: RequestHandler = async (req, res) => {
     const ssoLogoutUrl =
       ssoClient?.getLogoutUrl(sid, redirectUrl) ?? redirectUrl;
     logout(req);
-    res.json({ ssoLogoutUrl });
+    return res.json({ ssoLogoutUrl });
   } catch (err) {
-    res.status(500).send("Users/withdraw : internal server error");
+    logger.error(err);
+    return res.status(500).send("Users/withdraw : internal server error");
   }
 };
