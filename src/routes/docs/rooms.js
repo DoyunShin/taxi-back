@@ -979,4 +979,169 @@ roomsDocs[`${apiPrefix}/commitPayment`] = {
   },
 };
 
+roomsDocs[`${apiPrefix}/carrier/toggle`] = {
+  post: {
+    tags: [tag],
+    summary: "방 캐리어 보유 여부 토글",
+    description: `해당 방에 참여중인 사용자가 캐리어를 보유했는지 여부를 토글합니다.<br/>
+    방의 \`part\` 배열에서 해당 사용자의 \`hasCarrier\` 속성이 true/false로 갱신됩니다.`,
+    requestBody: {
+      content: {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              roomId: {
+                type: "string",
+                pattern: objectId.source,
+              },
+              hasCarrier: {
+                type: "boolean",
+                description: "보유 여부",
+              },
+            },
+            required: ["roomId", "hasCarrier"],
+          },
+        },
+      },
+    },
+    responses: {
+      200: {
+        description: "갱신된 방의 세부 정보가 담긴 room Object",
+        content: {
+          "application/json": {
+            schema: {
+              $ref: "#/components/schemas/room",
+            },
+          },
+        },
+      },
+      404: {
+        description: "잘못된 방 요청 (사용자가 참여중인 방이 아님)",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                error: {
+                  type: "string",
+                },
+              },
+            },
+            example: {
+              error: "Rooms/carrier/toggle : cannot find room info",
+            },
+          },
+        },
+      },
+      500: {
+        description: "내부 서버 오류",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                error: {
+                  type: "string",
+                },
+              },
+            },
+            example: {
+              error: "Rooms/carrier/toggle : internal server error",
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+roomsDocs[`${apiPrefix}/carrier/status`] = {
+  get: {
+    tags: [tag],
+    summary: "방 캐리어 보유 현황 조회",
+    description:
+      "해당 방의 참여자별 캐리어 보유 여부를 반환합니다. 방에 참여중인 사용자만 요청할 수 있습니다.",
+    parameters: [
+      {
+        in: "query",
+        name: "roomId",
+        schema: {
+          type: "string",
+          pattern: objectId.source,
+        },
+        description: "조회할 방 ObjectId",
+      },
+    ],
+    responses: {
+      200: {
+        description: "방에 참여중인 사용자별 캐리어 보유 여부",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                roomId: {
+                  type: "string",
+                  pattern: objectId.source,
+                },
+                carriers: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      userId: { type: "string", pattern: objectId.source },
+                      name: { type: "string" },
+                      nickname: { type: "string" },
+                      hasCarrier: { type: "boolean" },
+                    },
+                    required: ["userId", "nickname", "hasCarrier"],
+                  },
+                },
+              },
+              required: ["roomId", "carriers"],
+            },
+          },
+        },
+      },
+      404: {
+        description: "잘못된 방 요청 (방이 없거나 참여하지 않은 경우)",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                error: {
+                  type: "string",
+                },
+              },
+            },
+            example: {
+              error: "Rooms/carrier/status : cannot find room info",
+            },
+          },
+        },
+      },
+      500: {
+        description: "내부 서버 오류",
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                error: {
+                  type: "string",
+                },
+              },
+            },
+            example: {
+              error: "Rooms/carrier/status : internal server error",
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
 module.exports = roomsDocs;

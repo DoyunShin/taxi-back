@@ -62,6 +62,7 @@ describe("[rooms] 2.infoHandler", () => {
     const resData = res._getData();
     expect(resData).to.has.property("name", "test-room");
     expect(resData).to.has.property("isOver");
+    expect(resData.part[0]).to.has.property("hasCarrier", false);
   });
 });
 
@@ -78,6 +79,7 @@ describe("[rooms] 3.publicInfoHandler", () => {
     const resData = res._getData();
     expect(resData).to.has.property("name", "test-room");
     expect(resData).to.has.property("isOver", undefined);
+    expect(resData.part[0]).to.has.property("hasCarrier", false);
   });
 });
 
@@ -99,6 +101,50 @@ describe("[rooms] 4.joinHandler", () => {
     const resData = res._getData();
     expect(resData).to.has.property("name", "test-room");
     expect(resData.part).to.have.lengthOf(2);
+  });
+});
+
+// 4-1. 캐리어 보유 여부를 토글한다.
+describe("[rooms] 4-1.toggleCarrierHandler", () => {
+  it("should toggle hasCarrier flag for participant", async () => {
+    const testUser1 = await userModel.findOne({ id: "test1" });
+    const testRoom = await roomModel.findOne({ name: "test-room" });
+    let req = httpMocks.createRequest({
+      body: {
+        roomId: testRoom!._id,
+        hasCarrier: true,
+      },
+      userOid: testUser1!._id,
+    });
+    let res = httpMocks.createResponse();
+    await roomsHandlers.toggleCarrierHandler(req, res, () => {});
+
+    const resData = res._getData();
+    const participant = resData.part.find(
+      (part: any) => part._id === testUser1!._id.toString()
+    );
+    expect(participant).to.has.property("hasCarrier", true);
+  });
+});
+
+// 4-2. 방의 캐리어 보유 현황을 조회한다.
+describe("[rooms] 4-2.carrierStatusHandler", () => {
+  it("should return carrier status of room", async () => {
+    const testUser1 = await userModel.findOne({ id: "test1" });
+    const testRoom = await roomModel.findOne({ name: "test-room" });
+    let req = httpMocks.createRequest({
+      query: { roomId: testRoom!._id },
+      userOid: testUser1!._id,
+    });
+    let res = httpMocks.createResponse();
+    await roomsHandlers.carrierStatusHandler(req, res, () => {});
+
+    const resJson = res._getJSONData();
+    expect(resJson).to.has.property("roomId", testRoom!._id.toString());
+    const participant = resJson.carriers.find(
+      (part: any) => part.userId === testUser1!._id.toString()
+    );
+    expect(participant).to.has.property("hasCarrier", true);
   });
 });
 

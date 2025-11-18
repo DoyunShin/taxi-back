@@ -76,6 +76,15 @@ export const roomsZod = {
   commitPaymentHandler: z.object({
     roomId: z.string().regex(patterns.objectId),
   }),
+
+  toggleCarrierHandler: z.object({
+    roomId: z.string().regex(patterns.objectId),
+    hasCarrier: z.boolean(),
+  }),
+
+  carrierStatusHandler: z.object({
+    roomId: z.string().regex(patterns.objectId),
+  }),
 };
 
 export const roomsSchema = zodToSchemaObject(roomsZod);
@@ -94,3 +103,7 @@ export type CommitSettlementBody = z.infer<
   typeof roomsZod.commitSettlementHandler
 >;
 export type CommitPaymentBody = z.infer<typeof roomsZod.commitPaymentHandler>;
+export type ToggleCarrierBody = z.infer<typeof roomsZod.toggleCarrierHandler>;
+export type CarrierStatusQuery = z.infer<
+  typeof roomsZod.carrierStatusHandler
+>;
