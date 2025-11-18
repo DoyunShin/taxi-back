@@ -61,6 +61,8 @@ export interface FormattedRoom {
   time: Date;
   madeat: Date;
   maxPartLength: number;
+  emojiIdentifier?: string;
+  numericIdentifier?: string;
   part: {
     _id: string;
     name: string;

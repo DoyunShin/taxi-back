@@ -22,6 +22,7 @@ import type { Room } from "@/types/mongo";
 import { eventConfig } from "@/loadenv";
 import { contracts } from "@/lottery";
 import { notifyRoomCreationAbuseToReportChannel } from "@/modules/slackNotification";
+import { allocateRoomIdentifiers } from "@/modules/roomIdentifier";
 
 // 이벤트 코드입니다.
 const eventPeriod = eventConfig && {
@@ -47,7 +48,8 @@ export const createHandler: RequestHandler = async (req, res) => {
       });
     }
 
-    const createTime = new Date(time);
+    const departureTime = new Date(time);
+    const createTime = new Date(departureTime);
     createTime.setHours(0, 0, 0, 0);
 
     const maxTime = new Date();
@@ -93,16 +95,20 @@ export const createHandler: RequestHandler = async (req, res) => {
     }
 
     const part = [{ user: user._id }]; // settlementStatus는 기본적으로 "not-departed"로 설정됨
+    const { emojiIdentifier, numericIdentifier } =
+      await allocateRoomIdentifiers(departureTime); // 식별자 생성에 실패하더라도 오류를 발생시키지 않고 방을 생성합니다.
 
     let room = new roomModel({
       name: name,
       from: fromLoc._id,
       to: toLoc._id,
-      time: time,
+      time: departureTime,
       part: part,
       madeat: Date.now(),
       maxPartLength: maxPartLength,
       settlementTotal: 0,
+      emojiIdentifier: emojiIdentifier,
+      numericIdentifier: numericIdentifier,
     });
     await room.save();
 
