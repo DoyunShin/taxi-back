@@ -84,6 +84,13 @@ router.post(
   roomHandlers.commitPaymentHandler
 );
 
+// 해당 방에 요청을 보낸 유저의 출발 장소 도착 여부를 변경한다.
+router.post(
+  "/arrival",
+  validateBody(roomsZod.toggleArrivalHandler),
+  roomHandlers.toggleArrivalHandler
+);
+
 // json으로 수정할 값들을 받아 방의 정보를 수정합니다.
 // request JSON
 // roomId, name, from, to, time

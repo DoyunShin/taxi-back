@@ -15,6 +15,7 @@ import type {
   CreateTestBody,
   SearchByTimeGapQuery,
   SearchQuery,
+  ToggleArrivalBody,
 } from "@/routes/docs/schemas/roomsSchema";
 import type { Room } from "@/types/mongo";
 
@@ -797,6 +798,60 @@ export const commitPaymentHandler: RequestHandler = async (req, res) => {
     logger.error(err);
     return res.status(500).json({
       error: "Rooms/:id/commitPayment : internal server error",
+    });
+  }
+};
+
+export const toggleArrivalHandler: RequestHandler = async (req, res) => {
+  try {
+    const { roomId, isArrived } = req.body as ToggleArrivalBody;
+
+    const user = await userModel.findOne({ _id: req.userOid, withdraw: false });
+    if (!user) {
+      return res
+        .status(400)
+        .json({ error: "Rooms/:id/arrival : User not found" });
+    }
+
+    const roomObject = await roomModel
+      .findOneAndUpdate(
+        {
+          _id: roomId,
+          part: {
+            $elemMatch: {
+              user: user._id,
+              settlementStatus: { $nin: ["paid", "sent"] },
+            },
+          },
+        },
+        { $set: { "part.$.isArrived": isArrived } },
+        { new: true }
+      )
+      .lean()
+      .populate<RoomPopulatePath>(roomPopulateOption);
+
+    if (!roomObject) {
+      const participantExists = await roomModel.exists({
+        _id: roomId,
+        "part.user": user._id,
+      });
+      if (participantExists) {
+        return res.status(400).json({
+          error:
+            "Rooms/:id/arrival : cannot update after settlement or payment",
+        });
+      }
+      return res.status(404).json({
+        error: "Rooms/:id/arrival : cannot find corresponding room",
+      });
+    }
+
+    // 수정한 방 정보를 반환합니다.
+    return res.send(formatSettlement(roomObject, { isOver: true }));
+  } catch (err) {
+    logger.error(err);
+    return res.status(500).json({
+      error: "Rooms/:id/arrival : internal server error",
     });
   }
 };

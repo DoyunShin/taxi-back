@@ -14,7 +14,7 @@ export const roomPopulateOption = [
   { path: "to", select: "_id koName enName latitude longitude" },
   {
     path: "part",
-    select: "-_id user settlementStatus readAt",
+    select: "-_id user settlementStatus readAt isArrived",
     populate: {
       path: "user",
       select: "_id id name nickname profileImageUrl withdraw badge",
@@ -30,7 +30,10 @@ type PopulatedUser = Pick<
   User,
   "_id" | "id" | "name" | "nickname" | "profileImageUrl" | "withdraw" | "badge"
 >;
-type PopulatedParticipant = Pick<Participant, "settlementStatus" | "readAt"> & {
+type PopulatedParticipant = Pick<
+  Participant,
+  "settlementStatus" | "readAt" | "isArrived"
+> & {
   user: PopulatedUser | null;
 };
 
@@ -66,6 +69,7 @@ export interface FormattedRoom {
     withdraw: boolean;
     isSettlement?: SettlementStatus;
     readAt: Date;
+    isArrived?: boolean;
   }[];
   settlementTotal?: number;
   isOver?: boolean;
@@ -116,6 +120,9 @@ export const formatSettlement = (
         badge,
         isSettlement: includeSettlement ? settlementStatus : undefined,
         readAt: readAt ?? roomObject.madeat,
+        isArrived: includeSettlement
+          ? participantSubDocument.isArrived ?? false
+          : undefined,
       };
     }),
     settlementTotal: includeSettlement ? roomObject.settlementTotal : undefined,

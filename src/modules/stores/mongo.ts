@@ -135,6 +135,7 @@ const participantSchema = new Schema({
     default: "not-departed",
   },
   readAt: { type: Date },
+  isArrived: { type: Boolean },
 });
 
 export type Participant = InferSchemaType<typeof participantSchema>;
