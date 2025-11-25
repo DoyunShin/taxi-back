@@ -10,6 +10,10 @@ import { registerSchedules } from "./schedules/index";
 
 import { authMiddleware } from "@/middlewares";
 
+import { testFunction } from "./services/test";
+
+testFunction();
+
 registerSchedules();
 
 const mileageRouter = express.Router();
