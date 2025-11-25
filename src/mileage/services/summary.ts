@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 import { userModel } from "@/modules/stores/mongo";
 import { mileageModel } from "../modules/mongo";
 import { updateOldPendingTransaction } from "./transaction";
+import globalStateDocs from "@/lottery/routes/docs/globalState";
 
 export const summaryHandler: RequestHandler = async (req, res) => {
   const user = await userModel.findOne({
@@ -42,7 +43,7 @@ export const summaryHandler: RequestHandler = async (req, res) => {
   const totalMileage = expired + active;
   const activeMileage = active;
 
-  const tier = getTier(totalMileage, activeMileage);
+  const tier = getTier(activeMileage);
 
   return res.json({
     totalMileage,
@@ -51,15 +52,9 @@ export const summaryHandler: RequestHandler = async (req, res) => {
   });
 };
 
-const getTier = (totalMileage: number, activeMileage: number) => {
-  if (totalMileage > 128000 && activeMileage > 96000) {
-    return "gold";
-  }
-  if (totalMileage > 32000 && activeMileage > 24000) {
-    return "silver";
-  }
-  if (totalMileage > 8000 && activeMileage > 8000) {
-    return "normal";
-  }
-  return "none";
+const getTier = (activeMileage: number) => {
+  if (activeMileage > 96000) return "gold";
+  else if (activeMileage > 24000) return "silver";
+  else if (activeMileage > 8000) return "normal";
+  else return "none";
 };
