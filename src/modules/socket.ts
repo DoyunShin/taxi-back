@@ -35,6 +35,7 @@ interface TransformedChat {
   authorName?: string;
   authorProfileUrl?: string;
   authorIsWithdrew?: boolean;
+  authorResidence?: string;
   content: string;
   time: Date;
   isValid: boolean;
@@ -73,6 +74,7 @@ export const transformChatsForRoom = async (chats: PopulatedChat[]) => {
         authorName: chat.authorId?.nickname,
         authorProfileUrl: chat.authorId?.profileImageUrl,
         authorIsWithdrew: chat.authorId?.withdraw,
+        authorResidence: chat.authorId?.residence,
         content: chat.content,
         time: chat.time,
         isValid: chat.isValid,

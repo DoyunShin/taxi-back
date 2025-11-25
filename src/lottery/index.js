@@ -4,7 +4,7 @@ const {
   questModel,
   itemModel,
   transactionModel,
-  quizModel,
+  //quizModel,
 } = require("./modules/stores/mongo");
 
 const { buildResource } = require("../modules/adminResource");
@@ -24,17 +24,14 @@ eventConfig && require("./schedules")();
 
 const lotteryRouter = express.Router();
 
-// [Middleware] 모든 API 요청에 대하여 origin 검증
-lotteryRouter.use(require("../middlewares/originValidator").default);
-
 // [Router] APIs
 lotteryRouter.use("/globalState", require("./routes/globalState"));
 lotteryRouter.use("/invites", require("./routes/invites"));
 lotteryRouter.use("/transactions", require("./routes/transactions"));
 lotteryRouter.use("/items", require("./routes/items"));
 // lotteryRouter.use("/publicNotice", require("./routes/publicNotice"));
-lotteryRouter.use("/quests", require("./routes/quests"));
-lotteryRouter.use("/quizzes", require("./routes/quizzes").default);
+//lotteryRouter.use("/quests", require("./routes/quests"));
+//lotteryRouter.use("/quizzes", require("./routes/quizzes").default);
 
 // [AdminJS] AdminJS에 표시할 Resource 생성
 const resources =
@@ -43,7 +40,7 @@ const resources =
     buildResource()(questModel),
     buildResource([addOneItemStockAction, addFiveItemStockAction])(itemModel),
     buildResource()(transactionModel),
-    buildResource()(quizModel),
+    //buildResource()(quizModel),
   ]) ||
   [];
 
