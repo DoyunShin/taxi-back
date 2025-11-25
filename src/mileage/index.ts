@@ -8,6 +8,8 @@ import { appendMileageDocs } from "./routes/docs/index";
 
 import { registerSchedules } from "./schedules/index";
 
+import { authMiddleware } from "@/middlewares";
+
 registerSchedules();
 
 const mileageRouter = express.Router();
@@ -15,6 +17,9 @@ const mileageRouter = express.Router();
 appendMileageDocs();
 
 mileageRouter.use("/leaderboard", leaderboardRouter);
+
+// summary와 transaction에는 로그인이 필요함
+mileageRouter.use(authMiddleware);
 mileageRouter.use("/transaction", transactionRouter);
 mileageRouter.use("/summary", summaryRouter);
 

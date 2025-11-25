@@ -2,7 +2,7 @@ import type { RequestHandler } from "express";
 import { userModel } from "@/modules/stores/mongo";
 import { mileageModel } from "../modules/mongo";
 import { updateOldPendingTransaction } from "./transaction";
-import globalStateDocs from "@/lottery/routes/docs/globalState";
+import logger from "@/modules/logger";
 
 export const summaryHandler: RequestHandler = async (req, res) => {
   const user = await userModel.findOne({
