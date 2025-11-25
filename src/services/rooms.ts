@@ -22,6 +22,7 @@ import type { Room } from "@/types/mongo";
 import { eventConfig } from "@/loadenv";
 import { contracts } from "@/lottery";
 import { notifyRoomCreationAbuseToReportChannel } from "@/modules/slackNotification";
+import { forecastTaxiFare } from "@/mileage/modules/forecastTaxiFare";
 import {
   createTransaction,
   updateTransaction,
@@ -34,26 +35,6 @@ const eventPeriod = eventConfig && {
 };
 
 type CandidateRoom = Pick<Room, "from" | "to" | "time" | "maxPartLength">;
-
-const fareTable: Record<string, number> = {
-  "대전역,서대전역": 9000,
-  "대전역,택시승강장": 12600,
-  "대전역,유성 고속버스터미널": 13000,
-  "서대전역,택시승강장": 11200,
-  "서대전역,유성 고속버스터미널": 12300,
-  "택시승강장,유성 고속버스터미널": 7000,
-};
-
-const getExpectedAmount = async (from: Types.ObjectId, to: Types.ObjectId) => {
-  const fromLocation = await locationModel.findById(from);
-  const toLocation = await locationModel.findById(to);
-  if (!fromLocation || !toLocation) {
-    return -1;
-  }
-
-  const route = [fromLocation.koName, toLocation.koName].sort().join(",");
-  return fareTable[route] ?? 0;
-};
 
 export const createHandler: RequestHandler = async (req, res) => {
   const { name, from, to, time, maxPartLength } = req.body as CreateBody;
@@ -364,7 +345,11 @@ export const joinHandler: RequestHandler = async (req, res) => {
     ).toObject<PopulatedRoom>();
 
     const N = room.part.length;
-    const expectedAmount = await getExpectedAmount(room.from, room.to);
+    const expectedAmount = await forecastTaxiFare(
+      room.from,
+      room.to,
+      room.time
+    );
     const amount = (expectedAmount / N) * (N - 1);
 
     try {
@@ -468,7 +453,11 @@ export const abortHandler: RequestHandler = async (req, res) => {
 
     // 퇴장 채팅을 보냅니다.
     const N = room.part.length;
-    const expectedAmount = await getExpectedAmount(room.from, room.to);
+    const expectedAmount = await forecastTaxiFare(
+      room.from,
+      room.to,
+      room.time
+    );
 
     try {
       await updateTransaction([

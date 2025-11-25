@@ -6,6 +6,10 @@ import leaderboardRouter from "./routes/leaderboard";
 
 import { appendMileageDocs } from "./routes/docs/index";
 
+import { registerSchedules } from "./schedules/index";
+
+registerSchedules();
+
 const mileageRouter = express.Router();
 
 appendMileageDocs();

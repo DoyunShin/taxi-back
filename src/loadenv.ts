@@ -11,6 +11,14 @@ if (process.env.NODE_ENV === undefined) {
 }
 dotenv.config({ path: `./.env.${process.env.NODE_ENV}` });
 
+if (
+  process.env.NAVER_MAP_API_ID === undefined ||
+  process.env.NAVER_MAP_API_KEY === undefined
+) {
+  console.error("There is no API KEY environment variable.");
+  process.exit(1);
+}
+
 if (process.env.DB_PATH === undefined) {
   // logger.ts가 아직 초기화되지 않았으므로 console.error를 사용합니다.
   // eslint-disable-next-line no-console
@@ -63,8 +71,8 @@ export const slackWebhookUrl = {
 export const eventConfig =
   process.env.EVENT_CONFIG && JSON.parse(process.env.EVENT_CONFIG);
 export const naverMap = {
-  apiId: process.env.NAVER_MAP_API_ID || "", // optional
-  apiKey: process.env.NAVER_MAP_API_KEY || "", // optional
+  apiId: process.env.NAVER_MAP_API_ID,
+  apiKey: process.env.NAVER_MAP_API_KEY,
 };
 export const oneApp = {
   secretKey: process.env.ONEAPP_TOKEN_SECRET || "SPARCS_APP", // optional
