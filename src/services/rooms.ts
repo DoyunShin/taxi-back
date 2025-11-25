@@ -124,7 +124,7 @@ export const createHandler: RequestHandler = async (req, res) => {
     });
 
     // 이벤트 코드입니다.
-    await contracts?.completeFirstRoomCreationQuest(req.userOid, req.timestamp);
+    //await contracts?.completeFirstRoomCreationQuest(req.userOid, req.timestamp);
 
     // 마일리지 코드입니다.
     const mileageTime = new Date(time);
@@ -162,8 +162,8 @@ export const createTestHandler: RequestHandler = async (req, res) => {
     // 이벤트 코드입니다.
     if (
       !eventPeriod ||
-      req.timestamp! >= eventPeriod.endAt ||
-      req.timestamp! < eventPeriod.startAt
+      req.timestamp! >= eventPeriod.endAt.getTime() ||
+      req.timestamp! < eventPeriod.startAt.getTime()
     )
       return res.json({ result: true });
 
@@ -791,13 +791,20 @@ export const commitSettlementHandler: RequestHandler = async (req, res) => {
       authorId: user._id.toString(),
     });
 
+    //이벤트 코드입니다.
+    await contracts?.completeAllBadgedSettlementQuest(
+      req.timestamp!,
+      roomObject,
+      userModel
+    );
     // 이벤트 코드입니다.
+    /*
     await contracts?.completeFareSettlementQuest(
       req.userOid,
       req.timestamp,
       roomObject
     );
-
+    */
     const N = roomObject.part.length;
 
     try {
@@ -886,11 +893,13 @@ export const commitPaymentHandler: RequestHandler = async (req, res) => {
     });
 
     // 이벤트 코드입니다.
+    /*
     await contracts?.completeFarePaymentQuest(
       req.userOid,
       req.timestamp,
       roomObject
     );
+    */
 
     try {
       const paidUser = roomObject.part.filter((part) => {

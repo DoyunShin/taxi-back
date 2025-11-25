@@ -68,8 +68,15 @@ export const testAccounts =
 export const slackWebhookUrl = {
   report: process.env.SLACK_REPORT_WEBHOOK_URL || "", // optional
 };
-export const eventConfig =
-  process.env.EVENT_CONFIG && JSON.parse(process.env.EVENT_CONFIG);
+export const eventConfig = (process.env.EVENT_CONFIG &&
+  JSON.parse(process.env.EVENT_CONFIG)) || {
+  mode: "2025fall",
+  credit: { name: "응모권", initialAmount: 0 },
+  period: {
+    startAt: "2025-09-01T00:00:00+09:00",
+    endAt: "2025-10-30T00:00:00+09:00",
+  },
+};
 export const naverMap = {
   apiId: process.env.NAVER_MAP_API_ID,
   apiKey: process.env.NAVER_MAP_API_KEY,
