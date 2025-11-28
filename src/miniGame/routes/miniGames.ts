@@ -8,11 +8,7 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-router.post(
-  "/reinforcement/",
-  validateBody(miniGamesZod.reinforcementHandler),
-  miniGameHandlers.reinforcementHandler
-);
+router.get("/reinforcement/", miniGameHandlers.reinforcementHandler);
 
 router.get("/", miniGameHandlers.getMiniGameInfosHandler);
 

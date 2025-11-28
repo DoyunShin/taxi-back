@@ -9,27 +9,28 @@ type LevelUpProbInfoType = {
   success: number;
   maintain: number;
   fail: number;
+  burst: number;
 };
 const levelUpProb: LevelUpProbInfoType[] = [
-  { success: 100, maintain: 0, fail: 0 },
-  { success: 95, maintain: 5, fail: 0 },
-  { success: 90, maintain: 10, fail: 0 },
-  { success: 85, maintain: 15, fail: 0 },
-  { success: 75, maintain: 20, fail: 5 },
-  { success: 70, maintain: 25, fail: 5 },
-  { success: 60, maintain: 30, fail: 10 },
-  { success: 50, maintain: 40, fail: 10 },
-  { success: 45, maintain: 35, fail: 20 },
-  { success: 35, maintain: 45, fail: 20 },
-  { success: 30, maintain: 40, fail: 30 },
-  { success: 25, maintain: 45, fail: 30 },
-  { success: 15, maintain: 40, fail: 40 },
-  { success: 15, maintain: 45, fail: 40 },
-  { success: 10, maintain: 40, fail: 50 },
-  { success: 8, maintain: 42, fail: 50 },
-  { success: 5, maintain: 40, fail: 55 },
-  { success: 3, maintain: 42, fail: 55 },
-  { success: 2, maintain: 38, fail: 60 },
+  { success: 100, maintain: 0, fail: 0, burst: 0 },
+  { success: 95, maintain: 5, fail: 0, burst: 0 },
+  { success: 90, maintain: 10, fail: 0, burst: 0 },
+  { success: 85, maintain: 15, fail: 0, burst: 0 },
+  { success: 75, maintain: 20, fail: 5, burst: 0 },
+  { success: 70, maintain: 25, fail: 5, burst: 0 },
+  { success: 60, maintain: 30, fail: 10, burst: 0 },
+  { success: 50, maintain: 40, fail: 10, burst: 0 },
+  { success: 45, maintain: 35, fail: 20, burst: 0 },
+  { success: 35, maintain: 45, fail: 20, burst: 0 },
+  { success: 30, maintain: 40, fail: 30, burst: 0 },
+  { success: 25, maintain: 45, fail: 30, burst: 0 },
+  { success: 15, maintain: 40, fail: 40, burst: 0 },
+  { success: 15, maintain: 45, fail: 40, burst: 0 },
+  { success: 10, maintain: 35, fail: 45, burst: 10 },
+  { success: 8, maintain: 32, fail: 40, burst: 20 },
+  { success: 5, maintain: 25, fail: 40, burst: 30 },
+  { success: 3, maintain: 22, fail: 35, burst: 40 },
+  { success: 2, maintain: 13, fail: 35, burst: 50 },
 ];
 
 export const reinforcementHandler: RequestHandler = async (req, res) => {
@@ -43,22 +44,7 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
     return res.status(404).json({ error: "MiniGame data not found" });
   }
 
-  const part = req.body.part;
-  if (
-    !req.body.part ||
-    (part !== "PowerUnit" && part !== "Frame" && part !== "Tyre")
-  ) {
-    return res.status(400).json({
-      error: "miniGame/miniGames/reinforcement: Invalid part parameter",
-    });
-  }
-
-  const currentLevel =
-    part === "PowerUnit"
-      ? miniGameData.powerUnitLevel
-      : part === "Frame"
-      ? miniGameData.frameLevel
-      : miniGameData.tyreLevel;
+  const currentLevel = miniGameData.level;
 
   // total 20 levels
   if (currentLevel >= 20) {
@@ -82,25 +68,19 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
     newLevel = currentLevel + 1;
   } else if (rand <= probInfo.success + probInfo.maintain) {
     newLevel = currentLevel;
-  } else {
+  } else if (rand <= probInfo.success + probInfo.maintain + probInfo.fail) {
     newLevel = Math.max(1, currentLevel - 1);
+  } else {
+    newLevel = 1;
   }
 
-  if (part === "PowerUnit") {
-    miniGameData.powerUnitLevel = newLevel;
-  } else if (part === "Frame") {
-    miniGameData.frameLevel = newLevel;
-  } else if (part === "Tyre") {
-    miniGameData.tyreLevel = newLevel;
-  }
+  miniGameData.level = newLevel;
   miniGameData.creditAmount -= reinforcementCost;
   miniGameData.updatedAt = new Date();
   await miniGameData.save();
 
   return res.status(200).json({
-    powerUnitLevel: miniGameData.powerUnitLevel,
-    frameLevel: miniGameData.frameLevel,
-    tyreLevel: miniGameData.tyreLevel,
+    level: newLevel,
     creditAmount: miniGameData.creditAmount,
   });
 };
@@ -112,9 +92,7 @@ export const getMiniGameInfosHandler: RequestHandler = async (req, res) => {
     if (!miniGameStatus) {
       const newMiniGameStatus = new miniGameModel({
         userId: req.userOid,
-        powerUnitLevel: 1,
-        frameLevel: 1,
-        tyreLevel: 1,
+        level: 1,
         creditAmount: 0,
         updatedAt: new Date(),
       });
