@@ -273,14 +273,22 @@ export const getMiniGameLeaderboardHandler: RequestHandler = async (
     const nicknameMap = new Map(
       users.map((u) => [u._id.toString(), u.nickname])
     );
+    const profileImageUrlMap = new Map(
+      users.map((u) => [u._id.toString(), u.profileImageUrl])
+    );
 
-    const leaderboardWithNicknames = finalLeaderboard.map((item) => ({
-      ...item,
-      nickname: nicknameMap.get(item.userId.toString()) ?? "Unknown",
-    }));
+    const leaderboardWithNicknamesAndProfileImages = finalLeaderboard.map(
+      (item) => ({
+        ...item,
+        nickname: nicknameMap.get(item.userId.toString()) ?? "Unknown",
+        profileImageUrl:
+          profileImageUrlMap.get(item.userId.toString()) ??
+          "defaultProfileImageUrl",
+      })
+    );
 
     return res.json({
-      leaderboard: leaderboardWithNicknames,
+      leaderboard: leaderboardWithNicknamesAndProfileImages,
       userIncludedInTop20: isInTop20,
     });
   } catch (err) {
@@ -329,20 +337,28 @@ export const getDodgeMiniGameLeaderboardHandler: RequestHandler = async (
 
     const users = await userModel
       .find({ _id: { $in: userIds } })
-      .select("nickname")
+      .select("nickname profileImageUrl")
       .lean();
 
     const nicknameMap = new Map(
       users.map((u) => [u._id.toString(), u.nickname])
     );
+    const profileImageUrlMap = new Map(
+      users.map((u) => [u._id.toString(), u.profileImageUrl])
+    );
 
-    const leaderboardWithNicknames = finalLeaderboard.map((item) => ({
-      ...item,
-      nickname: nicknameMap.get(item.userId.toString()) ?? "Unknown",
-    }));
+    const leaderboardWithNicknamesAndProfileImages = finalLeaderboard.map(
+      (item) => ({
+        ...item,
+        nickname: nicknameMap.get(item.userId.toString()) ?? "Unknown",
+        profileImageUrl:
+          profileImageUrlMap.get(item.userId.toString()) ??
+          "defaultProfileImageUrl",
+      })
+    );
 
     return res.json({
-      leaderboard: leaderboardWithNicknames,
+      leaderboard: leaderboardWithNicknamesAndProfileImages,
       userIncludedInTop5: isInTop5,
     });
   } catch (err) {
