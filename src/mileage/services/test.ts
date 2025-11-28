@@ -71,10 +71,11 @@ export const createTransaction = async (
 
 export const testFunction = async () => {
   const userMonday = await userModel.findOne({ id: "monday" });
+  const transactionNum = 20;
   if (userMonday === null) {
     logger.info("there is no monday. Bye~");
   } else {
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < transactionNum; i++) {
       createTransaction(
         {
           userId: userMonday._id,
