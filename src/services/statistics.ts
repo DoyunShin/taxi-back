@@ -18,13 +18,14 @@ import type {
 
 const SEOUL_TIMEZONE = "Asia/Seoul";
 const DAY_MS = 86_400_000;
+const START_OF_TRACKING = startOfDayUTC(new Date("2022-01-01T00:00:00Z"));
 
 type PopulatedRoom = Room & {
   from?: { _id?: Types.ObjectId; enName?: string; koName?: string } | null;
   to?: { _id?: Types.ObjectId; enName?: string; koName?: string } | null;
 };
 
-const startOfDayUTC = (date: Date) => {
+export const startOfDayUTC = (date: Date) => {
   const d = new Date(date);
   d.setUTCHours(0, 0, 0, 0);
   return d;
@@ -33,7 +34,7 @@ const startOfDayUTC = (date: Date) => {
 const addDays = (date: Date, days: number) =>
   new Date(date.getTime() + days * DAY_MS);
 
-const getCumulativeAt = async (
+export const getCumulativeAt = async (
   targetDay: Date,
   startHint?: Date
 ): Promise<number> => {
@@ -46,7 +47,7 @@ const getCumulativeAt = async (
   return doc?.cumulativeSavings ?? 0;
 };
 
-const ensureCumulativeSavingsThrough = async (
+export const ensureCumulativeSavingsThrough = async (
   targetDay: Date,
   startHint?: Date
 ) => {
@@ -60,7 +61,19 @@ const ensureCumulativeSavingsThrough = async (
     ? addDays(new Date(latest.date), 1)
     : startHint
     ? startOfDayUTC(startHint)
-    : new Date(0);
+    : undefined;
+  if (!cursorDate) {
+    const earliestRoom = await roomModel
+      .findOne({}, { time: 1 })
+      .sort({ time: 1 })
+      .lean();
+    if (!earliestRoom?.time) return;
+    cursorDate = startOfDayUTC(new Date(earliestRoom.time));
+  }
+  // never backfill before tracking start
+  if (cursorDate < START_OF_TRACKING) {
+    cursorDate = START_OF_TRACKING;
+  }
   cursorDate = startOfDayUTC(cursorDate);
 
   if (cursorDate > target) return;

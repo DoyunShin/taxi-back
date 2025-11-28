@@ -760,6 +760,7 @@ export const commitSettlementHandler: RequestHandler = async (req, res) => {
     );
     */
 
+    // 유저의 아낀 금액을 갱신합니다.
     await applySavingsForUser(user, roomObject as unknown as PopulatedRoom);
 
     // 수정한 방 정보를 반환합니다.
@@ -843,6 +844,7 @@ export const commitPaymentHandler: RequestHandler = async (req, res) => {
     );
     */
 
+    // 유저의 아낀 금액을 갱신합니다.
     await applySavingsForUser(user, roomObject as unknown as PopulatedRoom);
 
     // 수정한 방 정보를 반환합니다.
