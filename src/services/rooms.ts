@@ -717,20 +717,18 @@ export const commitSettlementHandler: RequestHandler = async (req, res) => {
     const currentMiniGame = await miniGameModel.findOne({
       userId: req.userOid,
     });
-    if (!currentMiniGame) {
-      return res.status(404).json({ error: "MiniGame data not found" });
+    if (currentMiniGame) {
+      await miniGameModel
+        .findOneAndUpdate(
+          { userId: req.userOid },
+          {
+            creditAmount: currentMiniGame.creditAmount + creditAmount,
+            updatedAt: new Date(),
+          },
+          { new: true }
+        )
+        .lean();
     }
-
-    const updatedMiniGame = await miniGameModel
-      .findOneAndUpdate(
-        { userId: req.userOid },
-        {
-          creditAmount: currentMiniGame.creditAmount + creditAmount,
-          updatedAt: new Date(),
-        },
-        { new: true }
-      )
-      .lean();
 
     // 수정한 방 정보를 반환합니다.
     return res.send(formatSettlement(roomObject, { isOver: true }));
@@ -816,20 +814,18 @@ export const commitPaymentHandler: RequestHandler = async (req, res) => {
     const currentMiniGame = await miniGameModel.findOne({
       userId: req.userOid,
     });
-    if (!currentMiniGame) {
-      return res.status(404).json({ error: "MiniGame data not found" });
+    if (currentMiniGame) {
+      await miniGameModel
+        .findOneAndUpdate(
+          { userId: req.userOid },
+          {
+            creditAmount: currentMiniGame.creditAmount + creditAmount,
+            updatedAt: new Date(),
+          },
+          { new: true }
+        )
+        .lean();
     }
-
-    const updatedMiniGame = await miniGameModel
-      .findOneAndUpdate(
-        { userId: req.userOid },
-        {
-          creditAmount: currentMiniGame.creditAmount + creditAmount,
-          updatedAt: new Date(),
-        },
-        { new: true }
-      )
-      .lean();
 
     // 수정한 방 정보를 반환합니다.
     return res.send(formatSettlement(roomObject, { isOver: true }));

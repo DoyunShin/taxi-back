@@ -12,6 +12,7 @@ type LevelUpProbInfoType = {
   burst: number;
 };
 const levelUpProb: LevelUpProbInfoType[] = [
+  { success: 99, maintain: 1, fail: 0, burst: 0 },
   { success: 100, maintain: 0, fail: 0, burst: 0 },
   { success: 95, maintain: 5, fail: 0, burst: 0 },
   { success: 90, maintain: 10, fail: 0, burst: 0 },
@@ -74,7 +75,7 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
     });
   }
 
-  const reinforcementCost = currentLevel * 100;
+  const reinforcementCost = currentLevel * 100 + 100;
   if (miniGameData.creditAmount < reinforcementCost) {
     return res.status(400).json({
       error: "miniGame/miniGames/reinforcement: Insufficient credits",
@@ -110,7 +111,7 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
     remainingPreventBurst -= 1;
   }
 
-  const probInfo = levelUpProb[currentLevel - 1];
+  const probInfo = levelUpProb[currentLevel];
 
   let { success, maintain, fail, burst } = probInfo;
 
@@ -138,9 +139,9 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
   } else if (rand <= success + maintain) {
     newLevel = currentLevel;
   } else if (rand <= success + maintain + fail) {
-    newLevel = Math.max(1, currentLevel - 1);
+    newLevel = Math.max(0, currentLevel - 1);
   } else {
-    newLevel = 1;
+    newLevel = 0;
   }
 
   miniGameData.level = newLevel;
