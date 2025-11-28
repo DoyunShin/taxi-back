@@ -22,6 +22,7 @@ import type {
   UploadChatImgGetPUrlBody,
   UploadChatImgDoneBody,
 } from "@/routes/docs/schemas/chatsSchema";
+import { wordChain } from "@/miniGame/services/wordChain";
 
 const chatCount = 60;
 
@@ -168,6 +169,20 @@ export const sendChatHandler: RequestHandler = async (req, res) => {
       return res
         .status(403)
         .send("Chat/send : user did not participated in the room");
+    }
+
+    if (type === "wordChain") {
+      const room = await roomModel.findById(roomId);
+      if (!room) {
+        // will not happen (just to satisfy typescript compiler)
+        return res.status(404).send("Chat/send : room not found");
+      }
+      logger.info(
+        `User ${user._id} sent wordChain chat in room ${room._id}: ${content}`
+      );
+      const result = await wordChain(io, room._id, content, user._id);
+      logger.info(`wordChain result: ${JSON.stringify(result)}`);
+      return res.json({ result: true });
     }
 
     if (
