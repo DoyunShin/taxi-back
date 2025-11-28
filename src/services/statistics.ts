@@ -16,10 +16,6 @@ import type {
   UserSavingsQuery,
 } from "@/routes/docs/schemas/statisticsSchema";
 
-const SEOUL_TIMEZONE = "Asia/Seoul";
-const DAY_MS = 86_400_000;
-const START_OF_TRACKING = startOfDayUTC(new Date("2022-01-01T00:00:00Z"));
-
 type PopulatedRoom = Room & {
   from?: { _id?: Types.ObjectId; enName?: string; koName?: string } | null;
   to?: { _id?: Types.ObjectId; enName?: string; koName?: string } | null;
@@ -33,6 +29,10 @@ export const startOfDayUTC = (date: Date) => {
 
 const addDays = (date: Date, days: number) =>
   new Date(date.getTime() + days * DAY_MS);
+
+const SEOUL_TIMEZONE = "Asia/Seoul";
+const DAY_MS = 86_400_000;
+const START_OF_TRACKING = startOfDayUTC(new Date("2022-01-01T00:00:00Z"));
 
 export const getCumulativeAt = async (
   targetDay: Date,
@@ -233,8 +233,7 @@ export const savingsHandler: RequestHandler = async (req, res) => {
 
 export const savingsByPeriodHandler: RequestHandler = async (req, res) => {
   try {
-    const { startDate, endDate } =
-      req.query as unknown as SavingsPeriodQuery;
+    const { startDate, endDate } = req.query as unknown as SavingsPeriodQuery;
 
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -284,10 +283,11 @@ export const savingsTotalHandler: RequestHandler = async (_req, res) => {
     const todayStart = startOfDayUTC(now);
     const yesterday = addDays(todayStart, -1);
 
-    // Ensure cumulative values up to yesterday.
+    // 어제까지의 누적 아낀 금액을 가져옴
     const cumulativeUntilYesterday = await getCumulativeAt(yesterday);
 
-    // Sum today's savings so far.
+    // 오늘 누적 아낀 금액을 가져옴
+    /*
     const todaysRooms = await roomModel
       .find({
         time: { $gte: todayStart, $lte: now },
@@ -302,8 +302,9 @@ export const savingsTotalHandler: RequestHandler = async (_req, res) => {
       const { totalSavings } = getRoomSavings(room);
       return sum + totalSavings;
     }, 0);
+    */
 
-    const totalSavings = cumulativeUntilYesterday + todaySavings;
+    const totalSavings = cumulativeUntilYesterday; // + todaySavings;
 
     return res.json({
       metric: "savings-total",
@@ -424,7 +425,9 @@ export const hourlyRoomCreationHandler: RequestHandler = async (req, res) => {
             {
               $group: {
                 _id: {
-                  hour: { $hour: { date: "$madeat", timezone: SEOUL_TIMEZONE } },
+                  hour: {
+                    $hour: { date: "$madeat", timezone: SEOUL_TIMEZONE },
+                  },
                 },
                 count: { $sum: 1 },
               },

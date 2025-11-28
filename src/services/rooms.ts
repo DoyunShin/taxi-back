@@ -1,5 +1,5 @@
 import type { RequestHandler } from "express";
-import { Types, type PipelineStage } from "mongoose";
+import { Types, type PipelineStage, type HydratedDocument } from "mongoose";
 import {
   roomModel,
   locationModel,
@@ -59,7 +59,7 @@ const calculateUserSavings = async (userId: Types.ObjectId) => {
 };
 
 const applySavingsForUser = async (
-  user: User,
+  user: HydratedDocument<User>,
   room: PopulatedRoom
 ): Promise<void> => {
   try {
