@@ -7,6 +7,7 @@ const miniGameSchema = new Schema({
   creditAmount: { type: Number, required: true, default: 0 },
   preventFail: { type: Number, required: true, default: 0 },
   preventBurst: { type: Number, required: true, default: 0 },
+  dodgeScore: { type: Number, required: true, default: 0 },
   updatedAt: { type: Date, required: true },
 });
 

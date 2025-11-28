@@ -12,6 +12,7 @@ type LevelUpProbInfoType = {
   burst: number;
 };
 const levelUpProb: LevelUpProbInfoType[] = [
+  { success: 99, maintain: 1, fail: 0, burst: 0 },
   { success: 100, maintain: 0, fail: 0, burst: 0 },
   { success: 95, maintain: 5, fail: 0, burst: 0 },
   { success: 90, maintain: 10, fail: 0, burst: 0 },
@@ -74,7 +75,7 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
     });
   }
 
-  const reinforcementCost = currentLevel * 100;
+  const reinforcementCost = currentLevel * 100 + 100;
   if (miniGameData.creditAmount < reinforcementCost) {
     return res.status(400).json({
       error: "miniGame/miniGames/reinforcement: Insufficient credits",
@@ -110,7 +111,7 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
     remainingPreventBurst -= 1;
   }
 
-  const probInfo = levelUpProb[currentLevel - 1];
+  const probInfo = levelUpProb[currentLevel];
 
   let { success, maintain, fail, burst } = probInfo;
 
@@ -138,9 +139,9 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
   } else if (rand <= success + maintain) {
     newLevel = currentLevel;
   } else if (rand <= success + maintain + fail) {
-    newLevel = Math.max(1, currentLevel - 1);
+    newLevel = Math.max(0, currentLevel - 1);
   } else {
-    newLevel = 1;
+    newLevel = 0;
   }
 
   miniGameData.level = newLevel;
@@ -207,11 +208,14 @@ export const updateCreditHandler: RequestHandler = async (req, res) => {
       return res.status(404).json({ error: "MiniGame data not found" });
     }
 
+    const maxScore = Math.max(currentMiniGame.dodgeScore, score);
+
     const updatedMiniGame = await miniGameModel
       .findOneAndUpdate(
         { userId: req.userOid },
         {
           creditAmount: currentMiniGame.creditAmount + creditAmount,
+          dodgeScore: maxScore,
           updatedAt: new Date(),
         },
         { new: true }
@@ -266,6 +270,50 @@ export const getMiniGameLeaderboardHandler: RequestHandler = async (
     res
       .status(500)
       .json({ error: "miniGames/leaderboard : internal server error" });
+  }
+};
+
+export const getDodgeMiniGameLeaderboardHandler: RequestHandler = async (
+  req,
+  res
+) => {
+  try {
+    const userId = req.userOid;
+
+    const leaderboard = await miniGameModel
+      .find({ userId: { $ne: null } })
+      .select("userId dodgeScore")
+      .sort({ dodgeScore: -1, updatedAt: 1 })
+      .limit(5)
+      .lean();
+
+    const userRecord = await miniGameModel
+      .findOne({ userId })
+      .select("userId dodgeScore")
+      .lean();
+
+    if (!userRecord) {
+      return res.json({ leaderboard, userIncluded: false });
+    }
+
+    const isInTop5 = leaderboard.some(
+      (item) => item.userId?.toString() === userId!.toString()
+    );
+
+    let finalLeaderboard = leaderboard;
+    if (!isInTop5) {
+      finalLeaderboard = [...leaderboard, userRecord];
+    }
+
+    return res.json({
+      leaderboard: finalLeaderboard,
+      userIncludedInTop5: isInTop5,
+    });
+  } catch (err) {
+    logger.error(err);
+    res
+      .status(500)
+      .json({ error: "miniGames/dodgeLeaderboard : internal server error" });
   }
 };
 

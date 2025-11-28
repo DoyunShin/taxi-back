@@ -4,7 +4,7 @@ import { reinforcementHandler } from "@/miniGame/services/miniGames";
 
 export const miniGamesZod = {
   updateCreditHandler: z.object({
-    creditAmount: z.number().min(0),
+    score: z.number().min(0),
   }),
   reinforcementHandler: z.object({
     fail: z.boolean().optional(),
