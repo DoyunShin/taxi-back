@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { zodToSchemaObject } from "@/routes/docs/utils";
-import { reinforcementHandler } from "@/miniGame/services/miniGames";
 
 export const miniGamesZod = {
   updateCreditHandler: z.object({

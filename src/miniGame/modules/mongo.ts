@@ -28,8 +28,9 @@ export const wordChainModel = model("WordChain", wordChainSchema);
 export type WordChain = InferSchemaType<typeof wordChainSchema>;
 
 const dictionarySchema = new Schema({
-  word: { type: String, required: true },
+  word: { type: String, required: true, unique: true },
 });
 
 export const dictionaryModel = model("Dictionary", dictionarySchema);
+dictionaryModel.init(); // Ensure unique indexes are created
 export type Dictionary = InferSchemaType<typeof dictionarySchema>;
