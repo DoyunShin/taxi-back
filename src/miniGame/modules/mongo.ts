@@ -5,6 +5,8 @@ const miniGameSchema = new Schema({
   userId: { type: Types.ObjectId, ref: "User", required: true },
   level: { type: Number, required: true, default: 1 },
   creditAmount: { type: Number, required: true, default: 0 },
+  preventFail: { type: Number, required: true, default: 0 },
+  preventBurst: { type: Number, required: true, default: 0 },
   updatedAt: { type: Date, required: true },
 });
 

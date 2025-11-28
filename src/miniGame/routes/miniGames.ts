@@ -8,7 +8,11 @@ const router = express.Router();
 
 router.use(authMiddleware);
 
-router.get("/reinforcement/", miniGameHandlers.reinforcementHandler);
+router.get(
+  "/reinforcement/",
+  validateBody(miniGamesZod.reinforcementHandler),
+  miniGameHandlers.reinforcementHandler
+);
 
 router.get("/", miniGameHandlers.getMiniGameInfosHandler);
 
@@ -17,5 +21,7 @@ router.post(
   validateBody(miniGamesZod.updateCreditHandler),
   miniGameHandlers.updateCreditHandler
 );
+
+router.get("/leaderboard", miniGameHandlers.getMiniGameLeaderboardHandler);
 
 export default router;

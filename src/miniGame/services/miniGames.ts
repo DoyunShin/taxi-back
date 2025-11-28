@@ -60,15 +60,63 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
     });
   }
 
+  const { fail: useFailRaw, burst: useBurstRaw } = req.body as {
+    fail?: boolean;
+    burst?: boolean;
+  };
+
+  const useFail = !!useFailRaw;
+  const useBurst = !!useBurstRaw;
+
+  let remainingPreventFail = miniGameData.preventFail;
+  let remainingPreventBurst = miniGameData.preventBurst;
+
+  if (useFail) {
+    if (remainingPreventFail <= 0) {
+      return res.status(400).json({
+        error: "miniGame/miniGames/reinforcement: No preventFail item",
+      });
+    }
+    remainingPreventFail -= 1;
+  }
+
+  if (useBurst) {
+    if (remainingPreventBurst <= 0) {
+      return res.status(400).json({
+        error: "miniGame/miniGames/reinforcement: No preventBurst item",
+      });
+    }
+    remainingPreventBurst -= 1;
+  }
+
   const probInfo = levelUpProb[currentLevel - 1];
+
+  let { success, maintain, fail, burst } = probInfo;
+
+  if (useFail && useBurst) {
+    // 둘 다 사용: 하락 + 파괴 확률 전부 유지로
+    maintain += fail + burst;
+    fail = 0;
+    burst = 0;
+  } else if (useFail) {
+    // 하락 방지만: fail → maintain
+    maintain += fail;
+    fail = 0;
+  } else if (useBurst) {
+    // 파괴 방지만: burst → fail
+    fail += burst;
+    burst = 0;
+  }
+
   const rand = Math.floor(Math.random() * 100) + 1;
 
   let newLevel = currentLevel;
-  if (rand <= probInfo.success) {
+
+  if (rand <= success) {
     newLevel = currentLevel + 1;
-  } else if (rand <= probInfo.success + probInfo.maintain) {
+  } else if (rand <= success + maintain) {
     newLevel = currentLevel;
-  } else if (rand <= probInfo.success + probInfo.maintain + probInfo.fail) {
+  } else if (rand <= success + maintain + fail) {
     newLevel = Math.max(1, currentLevel - 1);
   } else {
     newLevel = 1;
@@ -76,6 +124,8 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
 
   miniGameData.level = newLevel;
   miniGameData.creditAmount -= reinforcementCost;
+  miniGameData.preventFail = remainingPreventFail;
+  miniGameData.preventBurst = remainingPreventBurst;
   miniGameData.updatedAt = new Date();
   await miniGameData.save();
 
@@ -88,17 +138,28 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
 export const getMiniGameInfosHandler: RequestHandler = async (req, res) => {
   try {
     const userId = isLogin(req) ? getLoginInfo(req).oid : null;
-    const miniGameStatus = await miniGameModel.findOne({ userId }).lean();
+    const miniGameStatus = await miniGameModel
+      .findOne({ userId })
+      .select("level creditAmount preventFail preventBurst")
+      .lean();
     if (!miniGameStatus) {
       const newMiniGameStatus = new miniGameModel({
         userId: req.userOid,
         level: 1,
         creditAmount: 0,
+        preventFail: 0,
+        preventBurst: 0,
         updatedAt: new Date(),
       });
       await newMiniGameStatus.save();
+
       return res.json({
-        newMiniGameStatus,
+        miniGameStatus: {
+          level: 1,
+          creditAmount: 0,
+          preventFail: 0,
+          preventBurst: 0,
+        },
       });
     }
     return res.json({
@@ -139,5 +200,49 @@ export const updateCreditHandler: RequestHandler = async (req, res) => {
   } catch (err) {
     logger.error(err);
     res.status(500).json({ error: "miniGames/update : internal server error" });
+  }
+};
+
+export const getMiniGameLeaderboardHandler: RequestHandler = async (
+  req,
+  res
+) => {
+  try {
+    const userId = req.userOid;
+
+    const leaderboard = await miniGameModel
+      .find({ userId: { $ne: null } })
+      .select("userId level")
+      .sort({ level: -1, updatedAt: 1 })
+      .limit(20)
+      .lean();
+
+    const userRecord = await miniGameModel
+      .findOne({ userId })
+      .select("userId level")
+      .lean();
+
+    if (!userRecord) {
+      return res.json({ leaderboard, userIncluded: false });
+    }
+
+    const isInTop20 = leaderboard.some(
+      (item) => item.userId?.toString() === userId!.toString()
+    );
+
+    let finalLeaderboard = leaderboard;
+    if (!isInTop20) {
+      finalLeaderboard = [...leaderboard, userRecord];
+    }
+
+    return res.json({
+      leaderboard: finalLeaderboard,
+      userIncludedInTop20: isInTop20,
+    });
+  } catch (err) {
+    logger.error(err);
+    res
+      .status(500)
+      .json({ error: "miniGames/leaderboard : internal server error" });
   }
 };
