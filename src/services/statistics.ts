@@ -22,10 +22,14 @@ const ESTIMATED_FARE_TABLE: Record<string, number> = {
   [buildFareKey("Taxi Stand", "Wolpyeong Station")]: 9000,
   [buildFareKey("Taxi Stand", "Yuseong-gu Office")]: 9000,
   [buildFareKey("Taxi Stand", "Yuseong Intercity Bus Terminal")]: 9000,
-  [buildFareKey("Taxi Stand", "Government Complex Express Bus Terminal")]:
-    14000,
-  [buildFareKey("Taxi Stand", "Government Complex Intercity Bus Terminal")]:
-    14000,
+  [buildFareKey(
+    "Taxi Stand",
+    "Government Complex Express Bus Terminal"
+  )]: 14000,
+  [buildFareKey(
+    "Taxi Stand",
+    "Government Complex Intercity Bus Terminal"
+  )]: 14000,
 
   // Daejeon Station
   [buildFareKey("Daejeon Station", "Gung-dong Rodeo Street")]: 12000,
@@ -58,10 +62,7 @@ const ESTIMATED_FARE_TABLE: Record<string, number> = {
   [buildFareKey("Galleria Timeworld", "Duck Pond")]: 7000,
   [buildFareKey("Galleria Timeworld", "Wolpyeong Station")]: 6000,
   [buildFareKey("Galleria Timeworld", "Yuseong Express Bus Terminal")]: 9000,
-  [buildFareKey(
-    "Galleria Timeworld",
-    "Yuseong Intercity Bus Terminal"
-  )]: 9000,
+  [buildFareKey("Galleria Timeworld", "Yuseong Intercity Bus Terminal")]: 9000,
   [buildFareKey(
     "Galleria Timeworld",
     "Government Complex Express Bus Terminal"
@@ -99,8 +100,10 @@ const ESTIMATED_FARE_TABLE: Record<string, number> = {
   // Daejeon Terminal Complex
   [buildFareKey("Daejeon Terminal Complex", "Mannyon Middle School")]: 14000,
   [buildFareKey("Daejeon Terminal Complex", "Seodaejeon Station")]: 9000,
-  [buildFareKey("Daejeon Terminal Complex", "Shinsegae Department Store")]:
-    9000,
+  [buildFareKey(
+    "Daejeon Terminal Complex",
+    "Shinsegae Department Store"
+  )]: 9000,
   [buildFareKey("Daejeon Terminal Complex", "Duck Pond")]: 15000,
   [buildFareKey("Daejeon Terminal Complex", "Wolpyeong Station")]: 12000,
   [buildFareKey("Daejeon Terminal Complex", "Yuseong-gu Office")]: 12000,
@@ -127,10 +130,7 @@ const ESTIMATED_FARE_TABLE: Record<string, number> = {
   [buildFareKey("Mannyon Middle School", "Duck Pond")]: 6000,
   [buildFareKey("Mannyon Middle School", "Wolpyeong Station")]: 6000,
   [buildFareKey("Mannyon Middle School", "Yuseong-gu Office")]: 6000,
-  [buildFareKey(
-    "Mannyon Middle School",
-    "Yuseong Express Bus Terminal"
-  )]: 8000,
+  [buildFareKey("Mannyon Middle School", "Yuseong Express Bus Terminal")]: 8000,
   [buildFareKey(
     "Mannyon Middle School",
     "Yuseong Intercity Bus Terminal"
@@ -149,14 +149,8 @@ const ESTIMATED_FARE_TABLE: Record<string, number> = {
   [buildFareKey("Seodaejeon Station", "Duck Pond")]: 14000,
   [buildFareKey("Seodaejeon Station", "Wolpyeong Station")]: 12000,
   [buildFareKey("Seodaejeon Station", "Yuseong-gu Office")]: 13000,
-  [buildFareKey(
-    "Seodaejeon Station",
-    "Yuseong Express Bus Terminal"
-  )]: 14000,
-  [buildFareKey(
-    "Seodaejeon Station",
-    "Yuseong Intercity Bus Terminal"
-  )]: 14000,
+  [buildFareKey("Seodaejeon Station", "Yuseong Express Bus Terminal")]: 14000,
+  [buildFareKey("Seodaejeon Station", "Yuseong Intercity Bus Terminal")]: 14000,
   [buildFareKey(
     "Seodaejeon Station",
     "Government Complex Express Bus Terminal"
@@ -192,10 +186,11 @@ const ESTIMATED_FARE_TABLE: Record<string, number> = {
   [buildFareKey("Duck Pond", "Yuseong-gu Office")]: 7000,
   [buildFareKey("Duck Pond", "Yuseong Express Bus Terminal")]: 9000,
   [buildFareKey("Duck Pond", "Yuseong Intercity Bus Terminal")]: 9000,
-  [buildFareKey("Duck Pond", "Government Complex Express Bus Terminal")]:
-    11000,
-  [buildFareKey("Duck Pond", "Government Complex Intercity Bus Terminal")]:
-    11000,
+  [buildFareKey("Duck Pond", "Government Complex Express Bus Terminal")]: 11000,
+  [buildFareKey(
+    "Duck Pond",
+    "Government Complex Intercity Bus Terminal"
+  )]: 11000,
 
   // Wolpyeong Station
   [buildFareKey("Wolpyeong Station", "Yuseong-gu Office")]: 6000,
@@ -307,12 +302,12 @@ export const savingsHandler: RequestHandler = async (req, res) => {
     let totalSavings = 0;
 
     for (const room of rooms) {
-      const from = room.from as {
+      const from = room.from as unknown as {
         _id: Types.ObjectId;
         enName: string;
         koName: string;
       } | null;
-      const to = room.to as {
+      const to = room.to as unknown as {
         _id: Types.ObjectId;
         enName: string;
         koName: string;
