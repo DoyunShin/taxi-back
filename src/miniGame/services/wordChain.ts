@@ -165,6 +165,15 @@ export const wordChain = async (
       });
       return;
     }
+    const wordExists = await dictionaryModel.findOne({ word });
+    if (!wordExists) {
+      await emitChatEvent(io, {
+        roomId,
+        type: "wordChain",
+        content: `"${word}"(은)는 사전에 없는 단어입니다. 다른 단어를 입력해주세요.`,
+      });
+      return;
+    }
     game.currentWord = word;
     game.usedWords.push(word);
     game.currentPlayerIndex =
