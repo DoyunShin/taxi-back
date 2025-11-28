@@ -24,6 +24,11 @@ router.post(
 
 router.get("/leaderboard", miniGameHandlers.getMiniGameLeaderboardHandler);
 
+router.get(
+  "/dodgeLeaderboard",
+  miniGameHandlers.getDodgeMiniGameLeaderboardHandler
+);
+
 router.post(
   "/buy",
   validateBody(miniGamesZod.buyItemHandler),
