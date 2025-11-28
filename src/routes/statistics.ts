@@ -13,4 +13,10 @@ router.get(
   statisticsHandlers.savingsHandler
 );
 
+router.get(
+  "/room-creation/hourly-average",
+  validateQuery(statisticsZod.hourlyRoomCreationHandler),
+  statisticsHandlers.hourlyRoomCreationHandler
+);
+
 export default router;

@@ -1,8 +1,16 @@
 import type { RequestHandler } from "express";
-import { Types, type FilterQuery } from "mongoose";
+import { Types, type FilterQuery, type PipelineStage } from "mongoose";
 import logger from "@/modules/logger";
-import { roomModel, userModel, type Room } from "@/modules/stores/mongo";
-import type { SavingsQuery } from "@/routes/docs/schemas/statisticsSchema";
+import {
+  locationModel,
+  roomModel,
+  userModel,
+  type Room,
+} from "@/modules/stores/mongo";
+import type {
+  HourlyRoomCreationQuery,
+  SavingsQuery,
+} from "@/routes/docs/schemas/statisticsSchema";
 
 const buildFareKey = (fromName: string, toName: string) =>
   [fromName, toName].sort().join("||");
@@ -243,6 +251,7 @@ const ESTIMATED_FARE_TABLE: Record<string, number> = {
 };
 
 const DEFAULT_FARE = 12000;
+const SEOUL_TIMEZONE = "Asia/Seoul";
 
 const getEstimatedFare = (fromName?: string, toName?: string) => {
   if (!fromName || !toName) return DEFAULT_FARE;
@@ -368,6 +377,117 @@ export const savingsHandler: RequestHandler = async (req, res) => {
     logger.error(err);
     return res.status(500).json({
       error: "Statistics/savings : internal server error",
+    });
+  }
+};
+
+export const hourlyRoomCreationHandler: RequestHandler = async (req, res) => {
+  try {
+    const { locationId, dayOfWeek } =
+      req.query as unknown as HourlyRoomCreationQuery;
+
+    const location = await locationModel
+      .findById(locationId, "enName koName")
+      .lean();
+    if (!location) {
+      return res.status(404).json({
+        error: "Statistics/hourly-room-creation : location not found",
+      });
+    }
+
+    const locationObjectId = new Types.ObjectId(locationId);
+    const targetDayOfWeek = dayOfWeek + 1; // MongoDB dayOfWeek starts from 1 (Sunday)
+
+    const aggregationPipeline: PipelineStage[] = [
+      {
+        $match: {
+          $or: [{ from: locationObjectId }, { to: locationObjectId }],
+          madeat: { $type: "date" },
+        },
+      },
+      {
+        $addFields: {
+          dayOfWeek: {
+            $dayOfWeek: { date: "$madeat", timezone: SEOUL_TIMEZONE },
+          },
+        },
+      },
+      { $match: { dayOfWeek: targetDayOfWeek } },
+      {
+        $facet: {
+          hourly: [
+            {
+              $group: {
+                _id: {
+                  hour: { $hour: { date: "$madeat", timezone: SEOUL_TIMEZONE } },
+                },
+                count: { $sum: 1 },
+              },
+            },
+          ],
+          days: [
+            {
+              $group: {
+                _id: {
+                  date: {
+                    $dateToString: {
+                      format: "%Y-%m-%d",
+                      date: "$madeat",
+                      timezone: SEOUL_TIMEZONE,
+                    },
+                  },
+                },
+              },
+            },
+            { $count: "value" },
+          ],
+        },
+      },
+    ];
+
+    const [aggregationResult] = await roomModel.aggregate<{
+      hourly: { _id: { hour: number }; count: number }[];
+      days: { value: number }[];
+    }>(aggregationPipeline);
+
+    const hourlyCounts = Array(24).fill(0);
+    const hourly = aggregationResult?.hourly ?? [];
+    for (const entry of hourly) {
+      const hour = entry?._id?.hour;
+      if (typeof hour === "number" && hour >= 0 && hour < 24) {
+        hourlyCounts[hour] = entry.count ?? 0;
+      }
+    }
+
+    const consideredDays = aggregationResult?.days?.[0]?.value ?? 0;
+    const hourlyAverages = hourlyCounts.map((count) =>
+      consideredDays > 0 ? count / consideredDays : 0
+    );
+
+    const intervals = hourlyAverages.map((averageRooms, hour) => ({
+      hour,
+      timeRange: `${String(hour).padStart(2, "0")}:00-${String(
+        hour + 1
+      ).padStart(2, "0")}:00`,
+      averageRooms,
+    }));
+
+    return res.json({
+      metric: "hourly-room-creation",
+      timezone: SEOUL_TIMEZONE,
+      location: {
+        id: location._id.toString(),
+        enName: location.enName,
+        koName: location.koName,
+      },
+      dayOfWeek,
+      consideredDays,
+      intervals,
+    });
+  } catch (err) {
+    logger.error(err);
+    return res.status(500).json({
+      error: "Statistics/hourly-room-creation : internal server error",
     });
   }
 };
