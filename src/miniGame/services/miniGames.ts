@@ -261,8 +261,26 @@ export const getMiniGameLeaderboardHandler: RequestHandler = async (
       finalLeaderboard = [...leaderboard, userRecord];
     }
 
+    const userIds = [
+      ...new Set(finalLeaderboard.map((item) => item.userId?.toString())),
+    ];
+
+    const users = await userModel
+      .find({ _id: { $in: userIds } })
+      .select("nickname")
+      .lean();
+
+    const nicknameMap = new Map(
+      users.map((u) => [u._id.toString(), u.nickname])
+    );
+
+    const leaderboardWithNicknames = finalLeaderboard.map((item) => ({
+      ...item,
+      nickname: nicknameMap.get(item.userId.toString()) ?? "Unknown",
+    }));
+
     return res.json({
-      leaderboard: finalLeaderboard,
+      leaderboard: leaderboardWithNicknames,
       userIncludedInTop20: isInTop20,
     });
   } catch (err) {
@@ -305,8 +323,26 @@ export const getDodgeMiniGameLeaderboardHandler: RequestHandler = async (
       finalLeaderboard = [...leaderboard, userRecord];
     }
 
+    const userIds = [
+      ...new Set(finalLeaderboard.map((item) => item.userId?.toString())),
+    ];
+
+    const users = await userModel
+      .find({ _id: { $in: userIds } })
+      .select("nickname")
+      .lean();
+
+    const nicknameMap = new Map(
+      users.map((u) => [u._id.toString(), u.nickname])
+    );
+
+    const leaderboardWithNicknames = finalLeaderboard.map((item) => ({
+      ...item,
+      nickname: nicknameMap.get(item.userId.toString()) ?? "Unknown",
+    }));
+
     return res.json({
-      leaderboard: finalLeaderboard,
+      leaderboard: leaderboardWithNicknames,
       userIncludedInTop5: isInTop5,
     });
   } catch (err) {
