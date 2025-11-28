@@ -12,6 +12,7 @@ type LevelUpProbInfoType = {
   burst: number;
 };
 const levelUpProb: LevelUpProbInfoType[] = [
+  { success: 99, maintain: 1, fail: 0, burst: 0 },
   { success: 100, maintain: 0, fail: 0, burst: 0 },
   { success: 95, maintain: 5, fail: 0, burst: 0 },
   { success: 90, maintain: 10, fail: 0, burst: 0 },
@@ -32,6 +33,27 @@ const levelUpProb: LevelUpProbInfoType[] = [
   { success: 3, maintain: 22, fail: 35, burst: 40 },
   { success: 2, maintain: 13, fail: 35, burst: 50 },
 ];
+
+type ItemType =
+  | "preventFail"
+  | "preventBurst"
+  | "makeLevel7"
+  | "makeLevel10"
+  | "makeLevel12";
+
+const ITEM_COST: Record<ItemType, number> = {
+  preventFail: 500,
+  preventBurst: 700,
+  makeLevel7: 1500,
+  makeLevel10: 2500,
+  makeLevel12: 4000,
+};
+
+const LEVEL_TARGET: Partial<Record<ItemType, number>> = {
+  makeLevel7: 7,
+  makeLevel10: 10,
+  makeLevel12: 12,
+};
 
 export const reinforcementHandler: RequestHandler = async (req, res) => {
   const user = await userModel.findById(req.userOid);
@@ -60,7 +82,54 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
     });
   }
 
-  const probInfo = levelUpProb[currentLevel - 1];
+  const { fail: useFailRaw, burst: useBurstRaw } = req.body as {
+    fail?: boolean;
+    burst?: boolean;
+  };
+
+  const useFail = !!useFailRaw;
+  const useBurst = !!useBurstRaw;
+
+  let remainingPreventFail = miniGameData.preventFail;
+  let remainingPreventBurst = miniGameData.preventBurst;
+
+  if (useFail) {
+    if (remainingPreventFail <= 0) {
+      return res.status(400).json({
+        error: "miniGame/miniGames/reinforcement: No preventFail item",
+      });
+    }
+    remainingPreventFail -= 1;
+  }
+
+  if (useBurst) {
+    if (remainingPreventBurst <= 0) {
+      return res.status(400).json({
+        error: "miniGame/miniGames/reinforcement: No preventBurst item",
+      });
+    }
+    remainingPreventBurst -= 1;
+  }
+
+  const probInfo = levelUpProb[currentLevel];
+
+  let { success, maintain, fail, burst } = probInfo;
+
+  if (useFail && useBurst) {
+    // 둘 다 사용: 하락 + 파괴 확률 전부 유지로
+    maintain += fail + burst;
+    fail = 0;
+    burst = 0;
+  } else if (useFail) {
+    // 하락 방지만: fail → maintain
+    maintain += fail;
+    fail = 0;
+  } else if (useBurst) {
+    // 파괴 방지만: burst → fail
+    fail += burst;
+    burst = 0;
+  }
+
   const rand = Math.floor(Math.random() * 100) + 1;
 
   let newLevel = currentLevel;
@@ -81,6 +150,8 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
 
   miniGameData.level = newLevel;
   miniGameData.creditAmount -= reinforcementCost;
+  miniGameData.preventFail = remainingPreventFail;
+  miniGameData.preventBurst = remainingPreventBurst;
   miniGameData.updatedAt = new Date();
   await miniGameData.save();
 
@@ -94,17 +165,28 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
 export const getMiniGameInfosHandler: RequestHandler = async (req, res) => {
   try {
     const userId = isLogin(req) ? getLoginInfo(req).oid : null;
-    const miniGameStatus = await miniGameModel.findOne({ userId }).lean();
+    const miniGameStatus = await miniGameModel
+      .findOne({ userId })
+      .select("level creditAmount preventFail preventBurst")
+      .lean();
     if (!miniGameStatus) {
       const newMiniGameStatus = new miniGameModel({
         userId: req.userOid,
-        level: 1,
+        level: 0,
         creditAmount: 0,
+        preventFail: 0,
+        preventBurst: 0,
         updatedAt: new Date(),
       });
       await newMiniGameStatus.save();
+
       return res.json({
-        newMiniGameStatus,
+        miniGameStatus: {
+          level: 0,
+          creditAmount: 0,
+          preventFail: 0,
+          preventBurst: 0,
+        },
       });
     }
     return res.json({
@@ -118,7 +200,8 @@ export const getMiniGameInfosHandler: RequestHandler = async (req, res) => {
 
 export const updateCreditHandler: RequestHandler = async (req, res) => {
   try {
-    const { creditAmount } = req.body;
+    const { score } = req.body;
+    const creditAmount = score / 10;
     if (typeof creditAmount !== "number" || creditAmount < 0) {
       return res.status(400).json({ error: "Invalid credit amount" });
     }
@@ -130,11 +213,14 @@ export const updateCreditHandler: RequestHandler = async (req, res) => {
       return res.status(404).json({ error: "MiniGame data not found" });
     }
 
+    const maxScore = Math.max(currentMiniGame.dodgeScore, score);
+
     const updatedMiniGame = await miniGameModel
       .findOneAndUpdate(
         { userId: req.userOid },
         {
           creditAmount: currentMiniGame.creditAmount + creditAmount,
+          dodgeScore: maxScore,
           updatedAt: new Date(),
         },
         { new: true }
@@ -145,5 +231,185 @@ export const updateCreditHandler: RequestHandler = async (req, res) => {
   } catch (err) {
     logger.error(err);
     res.status(500).json({ error: "miniGames/update : internal server error" });
+  }
+};
+
+export const getMiniGameLeaderboardHandler: RequestHandler = async (
+  req,
+  res
+) => {
+  try {
+    const userId = req.userOid;
+
+    const leaderboard = await miniGameModel
+      .find({ userId: { $ne: null } })
+      .select("userId level")
+      .sort({ level: -1, updatedAt: 1 })
+      .limit(20)
+      .lean();
+
+    const userRecord = await miniGameModel
+      .findOne({ userId })
+      .select("userId level")
+      .lean();
+
+    if (!userRecord) {
+      return res.json({ leaderboard, userIncluded: false });
+    }
+
+    const isInTop20 = leaderboard.some(
+      (item) => item.userId?.toString() === userId!.toString()
+    );
+
+    let finalLeaderboard = leaderboard;
+    if (!isInTop20) {
+      finalLeaderboard = [...leaderboard, userRecord];
+    }
+
+    const userIds = [
+      ...new Set(finalLeaderboard.map((item) => item.userId?.toString())),
+    ];
+
+    const users = await userModel
+      .find({ _id: { $in: userIds } })
+      .select("nickname")
+      .lean();
+
+    const nicknameMap = new Map(
+      users.map((u) => [u._id.toString(), u.nickname])
+    );
+
+    const leaderboardWithNicknames = finalLeaderboard.map((item) => ({
+      ...item,
+      nickname: nicknameMap.get(item.userId.toString()) ?? "Unknown",
+    }));
+
+    return res.json({
+      leaderboard: leaderboardWithNicknames,
+      userIncludedInTop20: isInTop20,
+    });
+  } catch (err) {
+    logger.error(err);
+    res
+      .status(500)
+      .json({ error: "miniGames/leaderboard : internal server error" });
+  }
+};
+
+export const getDodgeMiniGameLeaderboardHandler: RequestHandler = async (
+  req,
+  res
+) => {
+  try {
+    const userId = req.userOid;
+
+    const leaderboard = await miniGameModel
+      .find({ userId: { $ne: null } })
+      .select("userId dodgeScore")
+      .sort({ dodgeScore: -1, updatedAt: 1 })
+      .limit(5)
+      .lean();
+
+    const userRecord = await miniGameModel
+      .findOne({ userId })
+      .select("userId dodgeScore")
+      .lean();
+
+    if (!userRecord) {
+      return res.json({ leaderboard, userIncluded: false });
+    }
+
+    const isInTop5 = leaderboard.some(
+      (item) => item.userId?.toString() === userId!.toString()
+    );
+
+    let finalLeaderboard = leaderboard;
+    if (!isInTop5) {
+      finalLeaderboard = [...leaderboard, userRecord];
+    }
+
+    const userIds = [
+      ...new Set(finalLeaderboard.map((item) => item.userId?.toString())),
+    ];
+
+    const users = await userModel
+      .find({ _id: { $in: userIds } })
+      .select("nickname")
+      .lean();
+
+    const nicknameMap = new Map(
+      users.map((u) => [u._id.toString(), u.nickname])
+    );
+
+    const leaderboardWithNicknames = finalLeaderboard.map((item) => ({
+      ...item,
+      nickname: nicknameMap.get(item.userId.toString()) ?? "Unknown",
+    }));
+
+    return res.json({
+      leaderboard: leaderboardWithNicknames,
+      userIncludedInTop5: isInTop5,
+    });
+  } catch (err) {
+    logger.error(err);
+    res
+      .status(500)
+      .json({ error: "miniGames/dodgeLeaderboard : internal server error" });
+  }
+};
+
+export const buyItemHandler: RequestHandler = async (req, res) => {
+  try {
+    const userId = req.userOid;
+    const { itemType } = req.body as { itemType: ItemType };
+
+    // itemType 검증
+    if (!itemType || !(itemType in ITEM_COST)) {
+      return res.status(400).json({ error: "Invalid item type" });
+    }
+
+    const miniGameData = await miniGameModel.findOne({ userId });
+    if (!miniGameData) {
+      return res.status(404).json({ error: "MiniGame data not found" });
+    }
+
+    const itemCost = ITEM_COST[itemType];
+
+    if (miniGameData.creditAmount < itemCost) {
+      return res.status(400).json({
+        error: "miniGame/miniGames/buy: Insufficient credits",
+      });
+    }
+
+    // 인벤토리형 아이템
+    if (itemType === "preventFail") {
+      miniGameData.preventFail += 1;
+    } else if (itemType === "preventBurst") {
+      miniGameData.preventBurst += 1;
+    }
+    // 즉발 레벨업 아이템
+    else if (itemType in LEVEL_TARGET) {
+      const targetLevel = LEVEL_TARGET[itemType]!;
+      if (miniGameData.level >= targetLevel) {
+        return res.status(400).json({
+          error: "miniGame/miniGames/buy: Level already high enough",
+        });
+      }
+      miniGameData.level = targetLevel;
+    }
+
+    miniGameData.creditAmount -= itemCost;
+    miniGameData.updatedAt = new Date();
+    await miniGameData.save();
+
+    return res.status(200).json({
+      level: miniGameData.level,
+      preventFail: miniGameData.preventFail,
+      preventBurst: miniGameData.preventBurst,
+      creditAmount: miniGameData.creditAmount,
+    });
+  } catch (err) {
+    logger.error(err);
+    res.status(500).json({ error: "miniGames/buy : internal server error" });
   }
 };

@@ -21,6 +21,9 @@ import type { Room } from "@/types/mongo";
 import { eventConfig } from "@/loadenv";
 import { contracts } from "@/lottery";
 import { notifyRoomCreationAbuseToReportChannel } from "@/modules/slackNotification";
+import { miniGameModel } from "@/miniGame/modules/mongo";
+
+const creditAmount = 5000;
 
 // 이벤트 코드입니다.
 const eventPeriod = eventConfig && {
@@ -710,6 +713,23 @@ export const commitSettlementHandler: RequestHandler = async (req, res) => {
       roomObject
     );
     */
+
+    const currentMiniGame = await miniGameModel.findOne({
+      userId: req.userOid,
+    });
+    if (currentMiniGame) {
+      await miniGameModel
+        .findOneAndUpdate(
+          { userId: req.userOid },
+          {
+            creditAmount: currentMiniGame.creditAmount + creditAmount,
+            updatedAt: new Date(),
+          },
+          { new: true }
+        )
+        .lean();
+    }
+
     // 수정한 방 정보를 반환합니다.
     return res.send(formatSettlement(roomObject, { isOver: true }));
   } catch (err) {
@@ -790,6 +810,22 @@ export const commitPaymentHandler: RequestHandler = async (req, res) => {
       roomObject
     );
     */
+
+    const currentMiniGame = await miniGameModel.findOne({
+      userId: req.userOid,
+    });
+    if (currentMiniGame) {
+      await miniGameModel
+        .findOneAndUpdate(
+          { userId: req.userOid },
+          {
+            creditAmount: currentMiniGame.creditAmount + creditAmount,
+            updatedAt: new Date(),
+          },
+          { new: true }
+        )
+        .lean();
+    }
 
     // 수정한 방 정보를 반환합니다.
     return res.send(formatSettlement(roomObject, { isOver: true }));
