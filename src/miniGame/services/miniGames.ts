@@ -33,6 +33,27 @@ const levelUpProb: LevelUpProbInfoType[] = [
   { success: 2, maintain: 13, fail: 35, burst: 50 },
 ];
 
+type ItemType =
+  | "preventFail"
+  | "preventBurst"
+  | "makeLevel7"
+  | "makeLevel10"
+  | "makeLevel12";
+
+const ITEM_COST: Record<ItemType, number> = {
+  preventFail: 500,
+  preventBurst: 700,
+  makeLevel7: 1500,
+  makeLevel10: 2500,
+  makeLevel12: 4000,
+};
+
+const LEVEL_TARGET: Partial<Record<ItemType, number>> = {
+  makeLevel7: 7,
+  makeLevel10: 10,
+  makeLevel12: 12,
+};
+
 export const reinforcementHandler: RequestHandler = async (req, res) => {
   const user = await userModel.findById(req.userOid);
   if (!user) {
@@ -244,5 +265,61 @@ export const getMiniGameLeaderboardHandler: RequestHandler = async (
     res
       .status(500)
       .json({ error: "miniGames/leaderboard : internal server error" });
+  }
+};
+
+export const buyItemHandler: RequestHandler = async (req, res) => {
+  try {
+    const userId = req.userOid;
+    const { itemType } = req.body as { itemType: ItemType };
+
+    // itemType 검증
+    if (!itemType || !(itemType in ITEM_COST)) {
+      return res.status(400).json({ error: "Invalid item type" });
+    }
+
+    const miniGameData = await miniGameModel.findOne({ userId });
+    if (!miniGameData) {
+      return res.status(404).json({ error: "MiniGame data not found" });
+    }
+
+    const itemCost = ITEM_COST[itemType];
+
+    if (miniGameData.creditAmount < itemCost) {
+      return res.status(400).json({
+        error: "miniGame/miniGames/buy: Insufficient credits",
+      });
+    }
+
+    // 인벤토리형 아이템
+    if (itemType === "preventFail") {
+      miniGameData.preventFail += 1;
+    } else if (itemType === "preventBurst") {
+      miniGameData.preventBurst += 1;
+    }
+    // 즉발 레벨업 아이템
+    else if (itemType in LEVEL_TARGET) {
+      const targetLevel = LEVEL_TARGET[itemType]!;
+      if (miniGameData.level >= targetLevel) {
+        return res.status(400).json({
+          error: "miniGame/miniGames/buy: Level already high enough",
+        });
+      }
+      miniGameData.level = targetLevel;
+    }
+
+    miniGameData.creditAmount -= itemCost;
+    miniGameData.updatedAt = new Date();
+    await miniGameData.save();
+
+    return res.status(200).json({
+      level: miniGameData.level,
+      preventFail: miniGameData.preventFail,
+      preventBurst: miniGameData.preventBurst,
+      creditAmount: miniGameData.creditAmount,
+    });
+  } catch (err) {
+    logger.error(err);
+    res.status(500).json({ error: "miniGames/buy : internal server error" });
   }
 };
