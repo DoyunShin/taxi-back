@@ -3,9 +3,7 @@ import { InferSchemaType } from "@/modules/stores/mongo";
 
 const miniGameSchema = new Schema({
   userId: { type: Types.ObjectId, ref: "User", required: true },
-  powerUnitLevel: { type: Number, required: true, default: 1 },
-  frameLevel: { type: Number, required: true, default: 1 },
-  tyreLevel: { type: Number, required: true, default: 1 },
+  level: { type: Number, required: true, default: 1 },
   creditAmount: { type: Number, required: true, default: 0 },
   updatedAt: { type: Date, required: true },
 });
