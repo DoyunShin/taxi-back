@@ -75,8 +75,8 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
     });
   }
 
-  const reinforcementCost = currentLevel * 100 + 100;
-  if (miniGameData.creditAmount < reinforcementCost) {
+  const reinforcementCost = currentLevel * 100;
+  if (miniGameData.creditAmount <= reinforcementCost) {
     return res.status(400).json({
       error: "miniGame/miniGames/reinforcement: Insufficient credits",
     });
@@ -133,15 +133,19 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
   const rand = Math.floor(Math.random() * 100) + 1;
 
   let newLevel = currentLevel;
-
-  if (rand <= success) {
+  let levelUpMessage = "";
+  if (rand <= probInfo.success) {
     newLevel = currentLevel + 1;
-  } else if (rand <= success + maintain) {
+    levelUpMessage = "강화 성공!";
+  } else if (rand <= probInfo.success + probInfo.maintain) {
     newLevel = currentLevel;
-  } else if (rand <= success + maintain + fail) {
-    newLevel = Math.max(0, currentLevel - 1);
+    levelUpMessage = "강화 유지.";
+  } else if (rand <= probInfo.success + probInfo.maintain + probInfo.fail) {
+    newLevel = Math.max(1, currentLevel - 1);
+    levelUpMessage = "강화 실패.";
   } else {
-    newLevel = 0;
+    newLevel = 1;
+    levelUpMessage = "-레제-";
   }
 
   miniGameData.level = newLevel;
@@ -152,6 +156,7 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
   await miniGameData.save();
 
   return res.status(200).json({
+    levelUpMessage,
     level: newLevel,
     creditAmount: miniGameData.creditAmount,
   });
