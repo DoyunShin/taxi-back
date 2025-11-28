@@ -11,20 +11,22 @@ const dateString = z
 const dayOfWeek = z.coerce.number().int().min(0).max(6);
 
 export const statisticsZod = {
-  savingsHandler: z.object({
+  getsavingsHandler: z.object({
     startDate: dateString,
     endDate: dateString,
     userId: z.string().regex(patterns.objectId).optional(),
   }),
-  hourlyRoomCreationHandler: z.object({
+  gethourlyRoomCreationHandler: z.object({
     locationId: z.string().regex(patterns.objectId),
     dayOfWeek,
+    startDate: dateString,
+    endDate: dateString,
   }),
 };
 
 export const statisticsSchema = zodToSchemaObject(statisticsZod);
 
-export type SavingsQuery = z.infer<typeof statisticsZod.savingsHandler>;
+export type SavingsQuery = z.infer<typeof statisticsZod.getsavingsHandler>;
 export type HourlyRoomCreationQuery = z.infer<
-  typeof statisticsZod.hourlyRoomCreationHandler
+  typeof statisticsZod.gethourlyRoomCreationHandler
 >;

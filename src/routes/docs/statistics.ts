@@ -158,6 +158,22 @@ statisticsDocs[`${apiPrefix}/room-creation/hourly-average`] = {
       },
       {
         in: "query",
+        name: "startDate",
+        required: true,
+        schema: { type: "string", format: "date-time" },
+        description: "조회 시작 시각 (포함)",
+        example: "2025-01-01T00:00:00.000Z",
+      },
+      {
+        in: "query",
+        name: "endDate",
+        required: true,
+        schema: { type: "string", format: "date-time" },
+        description: "조회 종료 시각 (포함)",
+        example: "2025-01-31T23:59:59.000Z",
+      },
+      {
+        in: "query",
         name: "dayOfWeek",
         required: true,
         schema: { type: "integer", minimum: 0, maximum: 6 },
@@ -174,6 +190,8 @@ statisticsDocs[`${apiPrefix}/room-creation/hourly-average`] = {
               properties: {
                 metric: { type: "string", example: "hourly-room-creation" },
                 timezone: { type: "string", example: "Asia/Seoul" },
+                startDate: { type: "string", format: "date-time" },
+                endDate: { type: "string", format: "date-time" },
                 location: {
                   type: "object",
                   properties: {
@@ -209,6 +227,8 @@ statisticsDocs[`${apiPrefix}/room-creation/hourly-average`] = {
             example: {
               metric: "hourly-room-creation",
               timezone: "Asia/Seoul",
+              startDate: "2025-01-01T00:00:00.000Z",
+              endDate: "2025-01-31T23:59:59.000Z",
               location: {
                 id: "665b4d2c7c6f3fd1c0000001",
                 enName: "Taxi Stand",
@@ -250,6 +270,24 @@ statisticsDocs[`${apiPrefix}/room-creation/hourly-average`] = {
         content: {
           "text/html": {
             example: "Statistics/hourly-room-creation : location not found",
+          },
+        },
+      },
+      400: {
+        content: {
+          "text/html": {
+            examples: {
+              invalidDate: {
+                summary: "잘못된 날짜 형식",
+                value:
+                  "Statistics/hourly-room-creation : invalid date format",
+              },
+              reversedRange: {
+                summary: "잘못된 기간",
+                value:
+                  "Statistics/hourly-room-creation : startDate is after endDate",
+              },
+            },
           },
         },
       },

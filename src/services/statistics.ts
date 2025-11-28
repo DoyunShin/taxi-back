@@ -259,7 +259,7 @@ const getEstimatedFare = (fromName?: string, toName?: string) => {
   return ESTIMATED_FARE_TABLE[key] ?? DEFAULT_FARE;
 };
 
-export const savingsHandler: RequestHandler = async (req, res) => {
+export const getsavingsHandler: RequestHandler = async (req, res) => {
   try {
     const { startDate, endDate, userId } = req.query as unknown as SavingsQuery;
 
@@ -381,10 +381,28 @@ export const savingsHandler: RequestHandler = async (req, res) => {
   }
 };
 
-export const hourlyRoomCreationHandler: RequestHandler = async (req, res) => {
+export const gethourlyRoomCreationHandler: RequestHandler = async (
+  req,
+  res
+) => {
   try {
-    const { locationId, dayOfWeek } =
+    const { locationId, dayOfWeek, startDate, endDate } =
       req.query as unknown as HourlyRoomCreationQuery;
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({
+        error: "Statistics/hourly-room-creation : invalid date format",
+      });
+    }
+
+    if (start.getTime() > end.getTime()) {
+      return res.status(400).json({
+        error: "Statistics/hourly-room-creation : startDate is after endDate",
+      });
+    }
 
     const location = await locationModel
       .findById(locationId, "enName koName")
@@ -402,7 +420,7 @@ export const hourlyRoomCreationHandler: RequestHandler = async (req, res) => {
       {
         $match: {
           $or: [{ from: locationObjectId }, { to: locationObjectId }],
-          madeat: { $type: "date" },
+          madeat: { $type: "date", $gte: start, $lte: end },
         },
       },
       {
@@ -419,7 +437,9 @@ export const hourlyRoomCreationHandler: RequestHandler = async (req, res) => {
             {
               $group: {
                 _id: {
-                  hour: { $hour: { date: "$madeat", timezone: SEOUL_TIMEZONE } },
+                  hour: {
+                    $hour: { date: "$madeat", timezone: SEOUL_TIMEZONE },
+                  },
                 },
                 count: { $sum: 1 },
               },
@@ -475,6 +495,8 @@ export const hourlyRoomCreationHandler: RequestHandler = async (req, res) => {
     return res.json({
       metric: "hourly-room-creation",
       timezone: SEOUL_TIMEZONE,
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
       location: {
         id: location._id.toString(),
         enName: location.enName,

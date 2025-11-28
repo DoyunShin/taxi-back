@@ -9,14 +9,14 @@ router.use(authMiddleware);
 
 router.get(
   "/savings",
-  validateQuery(statisticsZod.savingsHandler),
-  statisticsHandlers.savingsHandler
+  validateQuery(statisticsZod.getsavingsHandler),
+  statisticsHandlers.getsavingsHandler
 );
 
 router.get(
   "/room-creation/hourly-average",
-  validateQuery(statisticsZod.hourlyRoomCreationHandler),
-  statisticsHandlers.hourlyRoomCreationHandler
+  validateQuery(statisticsZod.gethourlyRoomCreationHandler),
+  statisticsHandlers.gethourlyRoomCreationHandler
 );
 
 export default router;
