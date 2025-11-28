@@ -7,7 +7,7 @@ const statisticsDocs: Record<string, any> = {};
 statisticsDocs[`${apiPrefix}/savings`] = {
   get: {
     tags: [tag],
-    summary: "절감 금액 조회",
+    summary: "아낀 금액 조회",
     description: "아낀 금액(savings)을 계산합니다.",
     parameters: [
       {
@@ -92,7 +92,7 @@ statisticsDocs[`${apiPrefix}/savings`] = {
               metric: "savings",
               mode: "user",
               currency: "KRW",
-              totalSavings: 28500,
+              totalSavings: 12000,
               rooms: [
                 {
                   roomId: "665b4d2c7c6f3fd1c0000000",
