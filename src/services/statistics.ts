@@ -2,264 +2,113 @@ import type { RequestHandler } from "express";
 import { Types, type FilterQuery, type PipelineStage } from "mongoose";
 import logger from "@/modules/logger";
 import {
+  dailySavingsModel,
   locationModel,
   roomModel,
   userModel,
   type Room,
 } from "@/modules/stores/mongo";
+import { getRoomSavings } from "@/modules/savings";
 import type {
   HourlyRoomCreationQuery,
+  SavingsPeriodQuery,
   SavingsQuery,
+  UserSavingsQuery,
 } from "@/routes/docs/schemas/statisticsSchema";
 
-const buildFareKey = (fromName: string, toName: string) =>
-  [fromName, toName].sort().join("||");
-
-// Example fare table for all known routes. Keys are unordered pairs of location names.
-const ESTIMATED_FARE_TABLE: Record<string, number> = {
-  // Taxi Stand
-  [buildFareKey("Taxi Stand", "Daejeon Station")]: 10000,
-  [buildFareKey("Taxi Stand", "Daejeon Terminal Complex")]: 17000,
-  [buildFareKey("Taxi Stand", "Galleria Timeworld")]: 10000,
-  [buildFareKey("Taxi Stand", "Gung-dong Rodeo Street")]: 7000,
-  [buildFareKey("Taxi Stand", "Yuseong Express Bus Terminal")]: 9000,
-  [buildFareKey("Taxi Stand", "Mannyon Middle School")]: 8000,
-  [buildFareKey("Taxi Stand", "Seodaejeon Station")]: 16000,
-  [buildFareKey("Taxi Stand", "Shinsegae Department Store")]: 9000,
-  [buildFareKey("Taxi Stand", "Duck Pond")]: 5000,
-  [buildFareKey("Taxi Stand", "Wolpyeong Station")]: 9000,
-  [buildFareKey("Taxi Stand", "Yuseong-gu Office")]: 9000,
-  [buildFareKey("Taxi Stand", "Yuseong Intercity Bus Terminal")]: 9000,
-  [buildFareKey(
-    "Taxi Stand",
-    "Government Complex Express Bus Terminal"
-  )]: 14000,
-  [buildFareKey(
-    "Taxi Stand",
-    "Government Complex Intercity Bus Terminal"
-  )]: 14000,
-
-  // Daejeon Station
-  [buildFareKey("Daejeon Station", "Gung-dong Rodeo Street")]: 12000,
-  [buildFareKey("Daejeon Station", "Wolpyeong Station")]: 13000,
-  [buildFareKey("Daejeon Station", "Yuseong-gu Office")]: 14000,
-  [buildFareKey("Daejeon Station", "Galleria Timeworld")]: 9000,
-  [buildFareKey("Daejeon Station", "Daejeon Terminal Complex")]: 6000,
-  [buildFareKey("Daejeon Station", "Mannyon Middle School")]: 12000,
-  [buildFareKey("Daejeon Station", "Seodaejeon Station")]: 9000,
-  [buildFareKey("Daejeon Station", "Shinsegae Department Store")]: 11000,
-  [buildFareKey("Daejeon Station", "Duck Pond")]: 13000,
-  [buildFareKey("Daejeon Station", "Yuseong Express Bus Terminal")]: 15000,
-  [buildFareKey("Daejeon Station", "Yuseong Intercity Bus Terminal")]: 15000,
-  [buildFareKey(
-    "Daejeon Station",
-    "Government Complex Express Bus Terminal"
-  )]: 8000,
-  [buildFareKey(
-    "Daejeon Station",
-    "Government Complex Intercity Bus Terminal"
-  )]: 8000,
-
-  // Galleria Timeworld
-  [buildFareKey("Galleria Timeworld", "Yuseong-gu Office")]: 8000,
-  [buildFareKey("Galleria Timeworld", "Gung-dong Rodeo Street")]: 7000,
-  [buildFareKey("Galleria Timeworld", "Daejeon Terminal Complex")]: 8000,
-  [buildFareKey("Galleria Timeworld", "Mannyon Middle School")]: 7000,
-  [buildFareKey("Galleria Timeworld", "Seodaejeon Station")]: 9000,
-  [buildFareKey("Galleria Timeworld", "Shinsegae Department Store")]: 5000,
-  [buildFareKey("Galleria Timeworld", "Duck Pond")]: 7000,
-  [buildFareKey("Galleria Timeworld", "Wolpyeong Station")]: 6000,
-  [buildFareKey("Galleria Timeworld", "Yuseong Express Bus Terminal")]: 9000,
-  [buildFareKey("Galleria Timeworld", "Yuseong Intercity Bus Terminal")]: 9000,
-  [buildFareKey(
-    "Galleria Timeworld",
-    "Government Complex Express Bus Terminal"
-  )]: 8000,
-  [buildFareKey(
-    "Galleria Timeworld",
-    "Government Complex Intercity Bus Terminal"
-  )]: 8000,
-
-  // Gung-dong Rodeo Street
-  [buildFareKey("Gung-dong Rodeo Street", "Daejeon Terminal Complex")]: 15000,
-  [buildFareKey("Gung-dong Rodeo Street", "Mannyon Middle School")]: 6000,
-  [buildFareKey("Gung-dong Rodeo Street", "Seodaejeon Station")]: 14000,
-  [buildFareKey("Gung-dong Rodeo Street", "Shinsegae Department Store")]: 8000,
-  [buildFareKey("Gung-dong Rodeo Street", "Duck Pond")]: 5000,
-  [buildFareKey("Gung-dong Rodeo Street", "Wolpyeong Station")]: 8000,
-  [buildFareKey("Gung-dong Rodeo Street", "Yuseong-gu Office")]: 7000,
-  [buildFareKey(
-    "Gung-dong Rodeo Street",
-    "Yuseong Express Bus Terminal"
-  )]: 8000,
-  [buildFareKey(
-    "Gung-dong Rodeo Street",
-    "Yuseong Intercity Bus Terminal"
-  )]: 8000,
-  [buildFareKey(
-    "Gung-dong Rodeo Street",
-    "Government Complex Express Bus Terminal"
-  )]: 13000,
-  [buildFareKey(
-    "Gung-dong Rodeo Street",
-    "Government Complex Intercity Bus Terminal"
-  )]: 13000,
-
-  // Daejeon Terminal Complex
-  [buildFareKey("Daejeon Terminal Complex", "Mannyon Middle School")]: 14000,
-  [buildFareKey("Daejeon Terminal Complex", "Seodaejeon Station")]: 9000,
-  [buildFareKey(
-    "Daejeon Terminal Complex",
-    "Shinsegae Department Store"
-  )]: 9000,
-  [buildFareKey("Daejeon Terminal Complex", "Duck Pond")]: 15000,
-  [buildFareKey("Daejeon Terminal Complex", "Wolpyeong Station")]: 12000,
-  [buildFareKey("Daejeon Terminal Complex", "Yuseong-gu Office")]: 12000,
-  [buildFareKey(
-    "Daejeon Terminal Complex",
-    "Yuseong Express Bus Terminal"
-  )]: 16000,
-  [buildFareKey(
-    "Daejeon Terminal Complex",
-    "Yuseong Intercity Bus Terminal"
-  )]: 16000,
-  [buildFareKey(
-    "Daejeon Terminal Complex",
-    "Government Complex Express Bus Terminal"
-  )]: 7000,
-  [buildFareKey(
-    "Daejeon Terminal Complex",
-    "Government Complex Intercity Bus Terminal"
-  )]: 7000,
-
-  // Mannyon Middle School
-  [buildFareKey("Mannyon Middle School", "Seodaejeon Station")]: 12000,
-  [buildFareKey("Mannyon Middle School", "Shinsegae Department Store")]: 7000,
-  [buildFareKey("Mannyon Middle School", "Duck Pond")]: 6000,
-  [buildFareKey("Mannyon Middle School", "Wolpyeong Station")]: 6000,
-  [buildFareKey("Mannyon Middle School", "Yuseong-gu Office")]: 6000,
-  [buildFareKey("Mannyon Middle School", "Yuseong Express Bus Terminal")]: 8000,
-  [buildFareKey(
-    "Mannyon Middle School",
-    "Yuseong Intercity Bus Terminal"
-  )]: 8000,
-  [buildFareKey(
-    "Mannyon Middle School",
-    "Government Complex Express Bus Terminal"
-  )]: 10000,
-  [buildFareKey(
-    "Mannyon Middle School",
-    "Government Complex Intercity Bus Terminal"
-  )]: 10000,
-
-  // Seodaejeon Station
-  [buildFareKey("Seodaejeon Station", "Shinsegae Department Store")]: 12000,
-  [buildFareKey("Seodaejeon Station", "Duck Pond")]: 14000,
-  [buildFareKey("Seodaejeon Station", "Wolpyeong Station")]: 12000,
-  [buildFareKey("Seodaejeon Station", "Yuseong-gu Office")]: 13000,
-  [buildFareKey("Seodaejeon Station", "Yuseong Express Bus Terminal")]: 14000,
-  [buildFareKey("Seodaejeon Station", "Yuseong Intercity Bus Terminal")]: 14000,
-  [buildFareKey(
-    "Seodaejeon Station",
-    "Government Complex Express Bus Terminal"
-  )]: 9000,
-  [buildFareKey(
-    "Seodaejeon Station",
-    "Government Complex Intercity Bus Terminal"
-  )]: 9000,
-
-  // Shinsegae Department Store
-  [buildFareKey("Shinsegae Department Store", "Duck Pond")]: 7000,
-  [buildFareKey("Shinsegae Department Store", "Wolpyeong Station")]: 6000,
-  [buildFareKey("Shinsegae Department Store", "Yuseong-gu Office")]: 7000,
-  [buildFareKey(
-    "Shinsegae Department Store",
-    "Yuseong Express Bus Terminal"
-  )]: 9000,
-  [buildFareKey(
-    "Shinsegae Department Store",
-    "Yuseong Intercity Bus Terminal"
-  )]: 9000,
-  [buildFareKey(
-    "Shinsegae Department Store",
-    "Government Complex Express Bus Terminal"
-  )]: 9000,
-  [buildFareKey(
-    "Shinsegae Department Store",
-    "Government Complex Intercity Bus Terminal"
-  )]: 9000,
-
-  // Duck Pond
-  [buildFareKey("Duck Pond", "Wolpyeong Station")]: 7000,
-  [buildFareKey("Duck Pond", "Yuseong-gu Office")]: 7000,
-  [buildFareKey("Duck Pond", "Yuseong Express Bus Terminal")]: 9000,
-  [buildFareKey("Duck Pond", "Yuseong Intercity Bus Terminal")]: 9000,
-  [buildFareKey("Duck Pond", "Government Complex Express Bus Terminal")]: 11000,
-  [buildFareKey(
-    "Duck Pond",
-    "Government Complex Intercity Bus Terminal"
-  )]: 11000,
-
-  // Wolpyeong Station
-  [buildFareKey("Wolpyeong Station", "Yuseong-gu Office")]: 6000,
-  [buildFareKey("Wolpyeong Station", "Yuseong Express Bus Terminal")]: 8000,
-  [buildFareKey("Wolpyeong Station", "Yuseong Intercity Bus Terminal")]: 8000,
-  [buildFareKey(
-    "Wolpyeong Station",
-    "Government Complex Express Bus Terminal"
-  )]: 9000,
-  [buildFareKey(
-    "Wolpyeong Station",
-    "Government Complex Intercity Bus Terminal"
-  )]: 9000,
-
-  // Yuseong-gu Office
-  [buildFareKey("Yuseong-gu Office", "Yuseong Express Bus Terminal")]: 8000,
-  [buildFareKey("Yuseong-gu Office", "Yuseong Intercity Bus Terminal")]: 8000,
-  [buildFareKey(
-    "Yuseong-gu Office",
-    "Government Complex Express Bus Terminal"
-  )]: 9000,
-  [buildFareKey(
-    "Yuseong-gu Office",
-    "Government Complex Intercity Bus Terminal"
-  )]: 9000,
-
-  // Yuseong Express Bus Terminal
-  [buildFareKey(
-    "Yuseong Express Bus Terminal",
-    "Yuseong Intercity Bus Terminal"
-  )]: 5000,
-  [buildFareKey(
-    "Yuseong Express Bus Terminal",
-    "Government Complex Express Bus Terminal"
-  )]: 11000,
-  [buildFareKey(
-    "Yuseong Express Bus Terminal",
-    "Government Complex Intercity Bus Terminal"
-  )]: 11000,
-
-  // Yuseong Intercity Bus Terminal
-  [buildFareKey(
-    "Yuseong Intercity Bus Terminal",
-    "Government Complex Express Bus Terminal"
-  )]: 11000,
-  [buildFareKey(
-    "Yuseong Intercity Bus Terminal",
-    "Government Complex Intercity Bus Terminal"
-  )]: 11000,
-};
-
-const DEFAULT_FARE = 12000;
 const SEOUL_TIMEZONE = "Asia/Seoul";
+const DAY_MS = 86_400_000;
 
-const getEstimatedFare = (fromName?: string, toName?: string) => {
-  if (!fromName || !toName) return DEFAULT_FARE;
-  const key = buildFareKey(fromName, toName);
-  return ESTIMATED_FARE_TABLE[key] ?? DEFAULT_FARE;
+type PopulatedRoom = Room & {
+  from?: { _id?: Types.ObjectId; enName?: string; koName?: string } | null;
+  to?: { _id?: Types.ObjectId; enName?: string; koName?: string } | null;
 };
 
-export const getsavingsHandler: RequestHandler = async (req, res) => {
+const startOfDayUTC = (date: Date) => {
+  const d = new Date(date);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+};
+
+const addDays = (date: Date, days: number) =>
+  new Date(date.getTime() + days * DAY_MS);
+
+const getCumulativeAt = async (
+  targetDay: Date,
+  startHint?: Date
+): Promise<number> => {
+  const day = startOfDayUTC(targetDay);
+  await ensureCumulativeSavingsThrough(day, startHint);
+  const doc = await dailySavingsModel
+    .findOne({ date: { $lte: day } })
+    .sort({ date: -1 })
+    .lean();
+  return doc?.cumulativeSavings ?? 0;
+};
+
+const ensureCumulativeSavingsThrough = async (
+  targetDay: Date,
+  startHint?: Date
+) => {
+  const target = startOfDayUTC(targetDay);
+  const latest = await dailySavingsModel
+    .findOne({ date: { $lte: target } })
+    .sort({ date: -1 })
+    .lean();
+
+  let cursorDate = latest
+    ? addDays(new Date(latest.date), 1)
+    : startHint
+    ? startOfDayUTC(startHint)
+    : new Date(0);
+  cursorDate = startOfDayUTC(cursorDate);
+
+  if (cursorDate > target) return;
+
+  const cumulativeBase = latest?.cumulativeSavings ?? 0;
+  const endExclusive = addDays(target, 1);
+
+  const rooms = await roomModel
+    .find({
+      time: { $gte: cursorDate, $lt: endExclusive },
+    })
+    .sort({ time: 1 })
+    .populate([
+      { path: "from", select: "_id enName koName" },
+      { path: "to", select: "_id enName koName" },
+    ])
+    .lean<PopulatedRoom[]>();
+
+  const dayTotals = new Map<number, number>();
+  for (const room of rooms) {
+    const { totalSavings } = getRoomSavings(room);
+    const dayKey = startOfDayUTC(new Date(room.time)).getTime();
+    dayTotals.set(dayKey, (dayTotals.get(dayKey) ?? 0) + totalSavings);
+  }
+
+  const ops = [];
+  let runningTotal = cumulativeBase;
+  for (
+    let day = cursorDate.getTime();
+    day < endExclusive.getTime();
+    day += DAY_MS
+  ) {
+    runningTotal += dayTotals.get(day) ?? 0;
+    ops.push({
+      updateOne: {
+        filter: { date: new Date(day) },
+        update: { date: new Date(day), cumulativeSavings: runningTotal },
+        upsert: true,
+      },
+    });
+  }
+
+  if (ops.length > 0) {
+    await dailySavingsModel.bulkWrite(ops);
+  }
+};
+
+export const savingsHandler: RequestHandler = async (req, res) => {
   try {
     const { startDate, endDate, userId } = req.query as unknown as SavingsQuery;
 
@@ -305,22 +154,14 @@ export const getsavingsHandler: RequestHandler = async (req, res) => {
         { path: "from", select: "_id enName koName" },
         { path: "to", select: "_id enName koName" },
       ])
-      .lean();
+      .lean<PopulatedRoom[]>();
 
     const roomSavings = [];
     let totalSavings = 0;
 
     for (const room of rooms) {
-      const from = room.from as unknown as {
-        _id: Types.ObjectId;
-        enName: string;
-        koName: string;
-      } | null;
-      const to = room.to as unknown as {
-        _id: Types.ObjectId;
-        enName: string;
-        koName: string;
-      } | null;
+      const from = room.from;
+      const to = room.to;
 
       if (!from || !to) {
         logger.warn(
@@ -332,11 +173,7 @@ export const getsavingsHandler: RequestHandler = async (req, res) => {
       const participantCount = room.part?.length ?? 0;
       if (participantCount === 0) continue;
 
-      const estimatedFare = getEstimatedFare(from.enName, to.enName);
-      const savingsPerUser =
-        participantCount > 0
-          ? (estimatedFare * (participantCount - 1)) / participantCount
-          : 0;
+      const { estimatedFare, savingsPerUser } = getRoomSavings(room);
       const totalSavingsForRoom = isTotalMode
         ? savingsPerUser * participantCount
         : savingsPerUser;
@@ -344,12 +181,12 @@ export const getsavingsHandler: RequestHandler = async (req, res) => {
       roomSavings.push({
         roomId: room._id.toString(),
         from: {
-          id: from._id.toString(),
+          id: from._id?.toString() ?? "",
           enName: from.enName,
           koName: from.koName,
         },
         to: {
-          id: to._id.toString(),
+          id: to._id?.toString() ?? "",
           enName: to.enName,
           koName: to.koName,
         },
@@ -381,10 +218,147 @@ export const getsavingsHandler: RequestHandler = async (req, res) => {
   }
 };
 
-export const gethourlyRoomCreationHandler: RequestHandler = async (
-  req,
-  res
-) => {
+export const savingsByPeriodHandler: RequestHandler = async (req, res) => {
+  try {
+    const { startDate, endDate } =
+      req.query as unknown as SavingsPeriodQuery;
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({
+        error: "Statistics/savings/period : invalid date format",
+      });
+    }
+
+    if (start.getTime() > end.getTime()) {
+      return res.status(400).json({
+        error: "Statistics/savings/period : startDate is after endDate",
+      });
+    }
+
+    const startDay = startOfDayUTC(start);
+    const endDay = startOfDayUTC(end);
+
+    const cumulativeEnd = await getCumulativeAt(endDay, startDay);
+    const cumulativeBeforeStart = await getCumulativeAt(
+      addDays(startDay, -1),
+      startDay
+    );
+    const periodSavings = cumulativeEnd - cumulativeBeforeStart;
+
+    return res.json({
+      metric: "savings-period",
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      totalSavings: periodSavings,
+      cumulativeEnd,
+      cumulativeBeforeStart,
+      currency: "KRW",
+    });
+  } catch (err) {
+    logger.error(err);
+    return res.status(500).json({
+      error: "Statistics/savings/period : internal server error",
+    });
+  }
+};
+
+export const savingsTotalHandler: RequestHandler = async (_req, res) => {
+  try {
+    const now = new Date();
+    const todayStart = startOfDayUTC(now);
+    const yesterday = addDays(todayStart, -1);
+
+    // Ensure cumulative values up to yesterday.
+    const cumulativeUntilYesterday = await getCumulativeAt(yesterday);
+
+    // Sum today's savings so far.
+    const todaysRooms = await roomModel
+      .find({
+        time: { $gte: todayStart, $lte: now },
+      })
+      .populate([
+        { path: "from", select: "_id enName koName" },
+        { path: "to", select: "_id enName koName" },
+      ])
+      .lean<PopulatedRoom[]>();
+
+    const todaySavings = todaysRooms.reduce((sum, room) => {
+      const { totalSavings } = getRoomSavings(room);
+      return sum + totalSavings;
+    }, 0);
+
+    const totalSavings = cumulativeUntilYesterday + todaySavings;
+
+    return res.json({
+      metric: "savings-total",
+      asOf: now.toISOString(),
+      currency: "KRW",
+      totalSavings,
+    });
+  } catch (err) {
+    logger.error(err);
+    return res.status(500).json({
+      error: "Statistics/savings/total : internal server error",
+    });
+  }
+};
+
+const calculateUserSavings = async (userId: Types.ObjectId) => {
+  const rooms = await roomModel
+    .find({
+      part: {
+        $elemMatch: {
+          user: userId,
+          settlementStatus: { $in: ["paid", "sent"] },
+        },
+      },
+    })
+    .populate([
+      { path: "from", select: "_id enName koName" },
+      { path: "to", select: "_id enName koName" },
+    ])
+    .lean<PopulatedRoom[]>();
+
+  return rooms.reduce((sum, room) => {
+    const { savingsPerUser } = getRoomSavings(room);
+    return sum + savingsPerUser;
+  }, 0);
+};
+
+export const userSavingsHandler: RequestHandler = async (req, res) => {
+  try {
+    const { userId } = req.query as unknown as UserSavingsQuery;
+    const user = await userModel.findOne({ _id: userId, withdraw: false });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ error: "Statistics/users/savings : user not found" });
+    }
+
+    if (user.savings === null || user.savings === undefined) {
+      const totalSavings = await calculateUserSavings(user._id);
+      user.savings = totalSavings;
+      await user.save();
+    }
+
+    return res.json({
+      metric: "user-savings",
+      userId: user._id.toString(),
+      currency: "KRW",
+      totalSavings: user.savings ?? 0,
+    });
+  } catch (err) {
+    logger.error(err);
+    return res.status(500).json({
+      error: "Statistics/users/savings : internal server error",
+    });
+  }
+};
+
+export const hourlyRoomCreationHandler: RequestHandler = async (req, res) => {
   try {
     const { locationId, dayOfWeek, startDate, endDate } =
       req.query as unknown as HourlyRoomCreationQuery;
@@ -437,9 +411,7 @@ export const gethourlyRoomCreationHandler: RequestHandler = async (
             {
               $group: {
                 _id: {
-                  hour: {
-                    $hour: { date: "$madeat", timezone: SEOUL_TIMEZONE },
-                  },
+                  hour: { $hour: { date: "$madeat", timezone: SEOUL_TIMEZONE } },
                 },
                 count: { $sum: 1 },
               },

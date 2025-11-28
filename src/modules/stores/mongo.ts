@@ -18,6 +18,7 @@ const userSchema = new Schema({
   ban: { type: Boolean, default: false }, //계정 정지 여부
   joinat: { type: Date, required: true }, //가입 시각
   agreeOnTermsOfService: { type: Boolean, default: false }, //이용약관 동의 여부
+  savings: { type: Number, default: null }, // 누적 아낀 금액 (null이면 아직 계산되지 않음)
   subinfo: {
     kaist: { type: String, default: "" },
     sparcs: { type: String, default: "" },
@@ -282,6 +283,15 @@ const noticeSchema = new Schema(
 
 export const noticeModel = model("Notice", noticeSchema);
 export type Notice = InferSchemaType<typeof noticeSchema>;
+
+const dailySavingsSchema = new Schema({
+  date: { type: Date, required: true, unique: true },
+  cumulativeSavings: { type: Number, required: true },
+});
+dailySavingsSchema.index({ date: 1 });
+
+export const dailySavingsModel = model("DailySavings", dailySavingsSchema);
+export type DailySavings = InferSchemaType<typeof dailySavingsSchema>;
 
 mongoose.set("strictQuery", true);
 

@@ -142,6 +142,179 @@ statisticsDocs[`${apiPrefix}/savings`] = {
   },
 };
 
+statisticsDocs[`${apiPrefix}/savings/period`] = {
+  get: {
+    tags: [tag],
+    summary: "기간별 아낀 금액 합계",
+    description:
+      "특정 기간(포함)에 대해 저장된 누적 합계를 이용해 총 아낀 금액을 반환합니다.",
+    parameters: [
+      {
+        in: "query",
+        name: "startDate",
+        required: true,
+        schema: { type: "string", format: "date-time" },
+        description: "조회 시작 시각",
+        example: "2025-01-01T00:00:00.000Z",
+      },
+      {
+        in: "query",
+        name: "endDate",
+        required: true,
+        schema: { type: "string", format: "date-time" },
+        description: "조회 종료 시각",
+        example: "2025-01-07T23:59:59.000Z",
+      },
+    ],
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                metric: { type: "string", example: "savings-period" },
+                startDate: { type: "string", format: "date-time" },
+                endDate: { type: "string", format: "date-time" },
+                totalSavings: { type: "number" },
+                cumulativeEnd: { type: "number" },
+                cumulativeBeforeStart: { type: "number" },
+                currency: { type: "string" },
+              },
+            },
+            example: {
+              metric: "savings-period",
+              startDate: "2025-01-01T00:00:00.000Z",
+              endDate: "2025-01-07T23:59:59.000Z",
+              cumulativeEnd: 120000,
+              cumulativeBeforeStart: 40000,
+              totalSavings: 80000,
+              currency: "KRW",
+            },
+          },
+        },
+      },
+      400: {
+        content: {
+          "text/html": {
+            examples: {
+              invalidDate: {
+                summary: "잘못된 날짜 형식",
+                value: "Statistics/savings/period : invalid date format",
+              },
+              reversedRange: {
+                summary: "잘못된 기간",
+                value:
+                  "Statistics/savings/period : startDate is after endDate",
+              },
+            },
+          },
+        },
+      },
+      500: {
+        content: {
+          "text/html": {
+            example: "Statistics/savings/period : internal server error",
+          },
+        },
+      },
+    },
+  },
+};
+
+statisticsDocs[`${apiPrefix}/savings/total`] = {
+  get: {
+    tags: [tag],
+    summary: "오늘까지 누적 아낀 금액",
+    description: "오늘 현재까지 누적된 아낀 금액을 반환합니다.",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                metric: { type: "string", example: "savings-total" },
+                asOf: { type: "string", format: "date-time" },
+                currency: { type: "string" },
+                totalSavings: { type: "number" },
+              },
+            },
+            example: {
+              metric: "savings-total",
+              asOf: "2025-01-07T15:00:00.000Z",
+              totalSavings: 123000,
+              currency: "KRW",
+            },
+          },
+        },
+      },
+      500: {
+        content: {
+          "text/html": {
+            example: "Statistics/savings/total : internal server error",
+          },
+        },
+      },
+    },
+  },
+};
+
+statisticsDocs[`${apiPrefix}/users/savings`] = {
+  get: {
+    tags: [tag],
+    summary: "사용자별 누적 아낀 금액",
+    description:
+      "사용자의 누적 savings 값을 반환합니다. 저장값이 없으면 모든 완료된 방을 기반으로 계산합니다.",
+    parameters: [
+      {
+        in: "query",
+        name: "userId",
+        required: true,
+        schema: { type: "string", pattern: objectId.source },
+        description: "조회할 사용자 ObjectId",
+      },
+    ],
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                metric: { type: "string", example: "user-savings" },
+                userId: { type: "string" },
+                currency: { type: "string" },
+                totalSavings: { type: "number" },
+              },
+            },
+            example: {
+              metric: "user-savings",
+              userId: "665b4d2c7c6f3fd1c1234567",
+              totalSavings: 23000,
+              currency: "KRW",
+            },
+          },
+        },
+      },
+      404: {
+        content: {
+          "text/html": {
+            example: "Statistics/users/savings : user not found",
+          },
+        },
+      },
+      500: {
+        content: {
+          "text/html": {
+            example: "Statistics/users/savings : internal server error",
+          },
+        },
+      },
+    },
+  },
+};
+
 statisticsDocs[`${apiPrefix}/room-creation/hourly-average`] = {
   get: {
     tags: [tag],

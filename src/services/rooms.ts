@@ -1,6 +1,11 @@
 import type { RequestHandler } from "express";
 import { Types, type PipelineStage } from "mongoose";
-import { roomModel, locationModel, userModel } from "@/modules/stores/mongo";
+import {
+  roomModel,
+  locationModel,
+  userModel,
+  type User,
+} from "@/modules/stores/mongo";
 import { emitChatEvent } from "@/modules/socket";
 import logger from "@/modules/logger";
 import {
@@ -10,6 +15,7 @@ import {
   type RoomPopulatePath,
   type PopulatedRoom,
 } from "@/modules/populates/rooms";
+import { getRoomSavings } from "@/modules/savings";
 import type {
   CreateBody,
   CreateTestBody,
@@ -29,6 +35,49 @@ const eventPeriod = eventConfig && {
 };
 
 type CandidateRoom = Pick<Room, "from" | "to" | "time" | "maxPartLength">;
+
+const calculateUserSavings = async (userId: Types.ObjectId) => {
+  const rooms = await roomModel
+    .find({
+      part: {
+        $elemMatch: {
+          user: userId,
+          settlementStatus: { $in: ["paid", "sent"] },
+        },
+      },
+    })
+    .populate([
+      { path: "from", select: "_id enName koName" },
+      { path: "to", select: "_id enName koName" },
+    ])
+    .lean<PopulatedRoom[]>();
+
+  return rooms.reduce((sum, room) => {
+    const { savingsPerUser } = getRoomSavings(room);
+    return sum + savingsPerUser;
+  }, 0);
+};
+
+const applySavingsForUser = async (
+  user: User,
+  room: PopulatedRoom
+): Promise<void> => {
+  try {
+    const { savingsPerUser } = getRoomSavings(room);
+
+    if (user.savings === null || user.savings === undefined) {
+      const totalSavings = await calculateUserSavings(user._id);
+      user.savings = totalSavings;
+      await user.save();
+      return;
+    }
+
+    user.savings += savingsPerUser;
+    await user.save();
+  } catch (err) {
+    logger.error(`Rooms : failed to update user savings - ${err}`);
+  }
+};
 
 export const createHandler: RequestHandler = async (req, res) => {
   const { name, from, to, time, maxPartLength } = req.body as CreateBody;
@@ -710,6 +759,9 @@ export const commitSettlementHandler: RequestHandler = async (req, res) => {
       roomObject
     );
     */
+
+    await applySavingsForUser(user, roomObject as unknown as PopulatedRoom);
+
     // 수정한 방 정보를 반환합니다.
     return res.send(formatSettlement(roomObject, { isOver: true }));
   } catch (err) {
@@ -790,6 +842,8 @@ export const commitPaymentHandler: RequestHandler = async (req, res) => {
       roomObject
     );
     */
+
+    await applySavingsForUser(user, roomObject as unknown as PopulatedRoom);
 
     // 수정한 방 정보를 반환합니다.
     return res.send(formatSettlement(roomObject, { isOver: true }));
