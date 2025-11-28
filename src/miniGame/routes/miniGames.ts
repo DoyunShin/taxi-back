@@ -24,4 +24,10 @@ router.post(
 
 router.get("/leaderboard", miniGameHandlers.getMiniGameLeaderboardHandler);
 
+router.post(
+  "/buy",
+  validateBody(miniGamesZod.buyItemHandler),
+  miniGameHandlers.buyItemHandler
+);
+
 export default router;
