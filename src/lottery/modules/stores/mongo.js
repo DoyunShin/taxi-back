@@ -208,7 +208,7 @@ const quizSchema = Schema({
   ],
 });
 
-const minigameSchema = Schema({
+const miniGameSchema = Schema({
   userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
   powerUnitLevel: { type: Number, required: true, default: 1 },
   frameLevel: { type: Number, required: true, default: 1 },
