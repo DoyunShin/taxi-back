@@ -208,15 +208,6 @@ const quizSchema = Schema({
   ],
 });
 
-const miniGameSchema = Schema({
-  userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-  powerUnitLevel: { type: Number, required: true, default: 1 },
-  frameLevel: { type: Number, required: true, default: 1 },
-  tyreLevel: { type: Number, required: true, default: 1 },
-  creditAmount: { type: Number, required: true, default: 0 },
-  updatedAt: { type: Date, required: true },
-});
-
 module.exports = {
   eventStatusModel: mongoose.model(
     `${modelNamePrefix}EventStatus`,
@@ -229,5 +220,4 @@ module.exports = {
     transactionSchema
   ),
   quizModel: mongoose.model(`${modelNamePrefix}Quiz`, quizSchema),
-  minigameModel: mongoose.model("minigame", minigameSchema),
 };
