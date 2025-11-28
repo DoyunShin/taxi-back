@@ -26,6 +26,32 @@ export const getMiniGameInfosHandler: RequestHandler = async (req, res) => {
     });
   } catch (err) {
     logger.error(err);
-    res.status(500).json({ error: "GlobalState/ : internal server error" });
+    res.status(500).json({ error: "miniGames/ : internal server error" });
+  }
+};
+
+export const updateCreditHandler: RequestHandler = async (req, res) => {
+  try {
+    const { creditAmount } = req.body;
+    if (typeof creditAmount !== "number" || creditAmount < 0) {
+      return res.status(400).json({ error: "Invalid credit amount" });
+    }
+
+    const updatedMiniGame = await miniGameModel
+      .findOneAndUpdate(
+        { userId: req.userOid },
+        { creditAmount, updatedAt: new Date() },
+        { new: true }
+      )
+      .lean();
+
+    if (!updatedMiniGame) {
+      return res.status(404).json({ error: "MiniGame data not found" });
+    }
+
+    return res.json({ updatedMiniGame });
+  } catch (err) {
+    logger.error(err);
+    res.status(500).json({ error: "miniGames/update : internal server error" });
   }
 };
