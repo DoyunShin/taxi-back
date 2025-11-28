@@ -43,9 +43,9 @@ export const reinforcementHandler: RequestHandler = async (req, res) => {
     return res.status(404).json({ error: "MiniGame data not found" });
   }
 
-  const part = req.params.part;
+  const part = req.body.part;
   if (
-    !req.params.part ||
+    !req.body.part ||
     (part !== "PowerUnit" && part !== "Frame" && part !== "Tyre")
   ) {
     return res.status(400).json({
@@ -139,17 +139,23 @@ export const updateCreditHandler: RequestHandler = async (req, res) => {
       return res.status(400).json({ error: "Invalid credit amount" });
     }
 
+    const currentMiniGame = await miniGameModel.findOne({
+      userId: req.userOid,
+    });
+    if (!currentMiniGame) {
+      return res.status(404).json({ error: "MiniGame data not found" });
+    }
+
     const updatedMiniGame = await miniGameModel
       .findOneAndUpdate(
         { userId: req.userOid },
-        { creditAmount, updatedAt: new Date() },
+        {
+          creditAmount: currentMiniGame.creditAmount + creditAmount,
+          updatedAt: new Date(),
+        },
         { new: true }
       )
       .lean();
-
-    if (!updatedMiniGame) {
-      return res.status(404).json({ error: "MiniGame data not found" });
-    }
 
     return res.json({ updatedMiniGame });
   } catch (err) {
