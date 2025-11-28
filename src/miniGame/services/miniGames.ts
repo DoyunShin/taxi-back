@@ -166,7 +166,7 @@ export const getMiniGameInfosHandler: RequestHandler = async (req, res) => {
     if (!miniGameStatus) {
       const newMiniGameStatus = new miniGameModel({
         userId: req.userOid,
-        level: 1,
+        level: 0,
         creditAmount: 0,
         preventFail: 0,
         preventBurst: 0,
@@ -176,7 +176,7 @@ export const getMiniGameInfosHandler: RequestHandler = async (req, res) => {
 
       return res.json({
         miniGameStatus: {
-          level: 1,
+          level: 0,
           creditAmount: 0,
           preventFail: 0,
           preventBurst: 0,
@@ -194,7 +194,8 @@ export const getMiniGameInfosHandler: RequestHandler = async (req, res) => {
 
 export const updateCreditHandler: RequestHandler = async (req, res) => {
   try {
-    const { creditAmount } = req.body;
+    const { score } = req.body;
+    const creditAmount = score / 10;
     if (typeof creditAmount !== "number" || creditAmount < 0) {
       return res.status(400).json({ error: "Invalid credit amount" });
     }
