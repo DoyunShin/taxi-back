@@ -293,6 +293,34 @@ dailySavingsSchema.index({ date: 1 });
 export const dailySavingsModel = model("DailySavings", dailySavingsSchema);
 export type DailySavings = InferSchemaType<typeof dailySavingsSchema>;
 
+const monthlyRoomCreationSchema = new Schema({
+  month: { type: Date, required: true, unique: true }, // month start (UTC)
+  cumulativeRooms: { type: Number, required: true },
+});
+monthlyRoomCreationSchema.index({ month: 1 });
+
+export const monthlyRoomCreationModel = model(
+  "MonthlyRoomCreation",
+  monthlyRoomCreationSchema
+);
+export type MonthlyRoomCreation = InferSchemaType<
+  typeof monthlyRoomCreationSchema
+>;
+
+const monthlyUserCreationSchema = new Schema({
+  month: { type: Date, required: true, unique: true }, // month start (UTC)
+  cumulativeUsers: { type: Number, required: true },
+});
+monthlyUserCreationSchema.index({ month: 1 });
+
+export const monthlyUserCreationModel = model(
+  "MonthlyUserCreation",
+  monthlyUserCreationSchema
+);
+export type MonthlyUserCreation = InferSchemaType<
+  typeof monthlyUserCreationSchema
+>;
+
 mongoose.set("strictQuery", true);
 
 const database = mongoose.connection;

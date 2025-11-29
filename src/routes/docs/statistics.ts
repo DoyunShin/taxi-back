@@ -314,6 +314,129 @@ statisticsDocs[`${apiPrefix}/users/savings`] = {
   },
 };
 
+statisticsDocs[`${apiPrefix}/room-creation/monthly`] = {
+  get: {
+    tags: [tag],
+    summary: "월별 방 생성 누적 수",
+    description:
+      "2022-11부터 지난달까지 월별 방 생성 누적 수를 반환합니다. 현재 달은 포함하지 않습니다.",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                metric: { type: "string", example: "monthly-room-creation" },
+                timezone: { type: "string", example: "Asia/Seoul" },
+                range: {
+                  type: "object",
+                  properties: {
+                    startMonth: { type: "string", format: "date-time" },
+                    endMonth: { type: "string", format: "date-time" },
+                  },
+                },
+                months: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      month: { type: "string", format: "date-time" },
+                      cumulativeRooms: { type: "number" },
+                    },
+                  },
+                },
+              },
+            },
+            example: {
+              metric: "monthly-room-creation",
+              timezone: "Asia/Seoul",
+              range: {
+                startMonth: "2022-11-01T00:00:00.000Z",
+                endMonth: "2025-02-01T00:00:00.000Z",
+              },
+              months: [
+                { month: "2022-11-01T00:00:00.000Z", cumulativeRooms: 12 },
+                { month: "2022-12-01T00:00:00.000Z", cumulativeRooms: 20 },
+                { month: "2023-01-01T00:00:00.000Z", cumulativeRooms: 35 },
+              ],
+            },
+          },
+        },
+      },
+      500: {
+        content: {
+          "text/html": {
+            example:
+              "Statistics/room-creation/monthly : internal server error",
+          },
+        },
+      },
+    },
+  },
+};
+
+statisticsDocs[`${apiPrefix}/users/monthly`] = {
+  get: {
+    tags: [tag],
+    summary: "월별 사용자 가입 누적 수",
+    description:
+      "2022-11부터 지난달까지 사용자 가입(등록) 누적 수를 반환합니다. 현재 달은 포함하지 않습니다.",
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                metric: { type: "string", example: "monthly-user-creation" },
+                timezone: { type: "string", example: "Asia/Seoul" },
+                range: {
+                  type: "object",
+                  properties: {
+                    startMonth: { type: "string", format: "date-time" },
+                    endMonth: { type: "string", format: "date-time" },
+                  },
+                },
+                months: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      month: { type: "string", format: "date-time" },
+                      cumulativeUsers: { type: "number" },
+                    },
+                  },
+                },
+              },
+            },
+            example: {
+              metric: "monthly-user-creation",
+              timezone: "Asia/Seoul",
+              range: {
+                startMonth: "2022-11-01T00:00:00.000Z",
+                endMonth: "2025-02-01T00:00:00.000Z",
+              },
+              months: [
+                { month: "2022-11-01T00:00:00.000Z", cumulativeUsers: 50 },
+                { month: "2022-12-01T00:00:00.000Z", cumulativeUsers: 120 },
+                { month: "2023-01-01T00:00:00.000Z", cumulativeUsers: 180 },
+              ],
+            },
+          },
+        },
+      },
+      500: {
+        content: {
+          "text/html": {
+            example: "Statistics/users/monthly : internal server error",
+          },
+        },
+      },
+    },
+  },
+};
+
 statisticsDocs[`${apiPrefix}/room-creation/hourly`] = {
   get: {
     tags: [tag],

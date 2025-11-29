@@ -28,6 +28,8 @@ export const statisticsZod = {
   userSavingsHandler: z.object({
     userId: z.string().regex(patterns.objectId),
   }),
+  monthlyRoomCreationHandler: z.object({}),
+  monthlyUserCreationHandler: z.object({}),
 };
 
 export const statisticsSchema = zodToSchemaObject(statisticsZod);
@@ -44,4 +46,10 @@ export type SavingsTotalQuery = z.infer<
 >;
 export type UserSavingsQuery = z.infer<
   typeof statisticsZod.userSavingsHandler
+>;
+export type MonthlyRoomCreationQuery = z.infer<
+  typeof statisticsZod.monthlyRoomCreationHandler
+>;
+export type MonthlyUserCreationQuery = z.infer<
+  typeof statisticsZod.monthlyUserCreationHandler
 >;

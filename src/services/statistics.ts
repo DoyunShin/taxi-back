@@ -6,11 +6,15 @@ import {
   locationModel,
   roomModel,
   userModel,
+  monthlyRoomCreationModel,
+  monthlyUserCreationModel,
   type Room,
 } from "@/modules/stores/mongo";
 import { getRoomSavings } from "@/modules/savings";
 import type {
   HourlyRoomCreationQuery,
+  MonthlyRoomCreationQuery,
+  MonthlyUserCreationQuery,
   SavingsPeriodQuery,
   SavingsQuery,
   UserSavingsQuery,
@@ -31,6 +35,7 @@ const SEOUL_TIMEZONE = "Asia/Seoul";
 const DAY_MS = 86_400_000;
 const START_OF_TRACKING = startOfDayUTC(new Date("2022-01-01T00:00:00Z"));
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const START_OF_MONTH_TRACKING = new Date(Date.UTC(2022, 10, 1, 0, 0, 0, 0)); // 2022-11-01
 
 const addDays = (date: Date, days: number) =>
   new Date(date.getTime() + days * DAY_MS);
@@ -39,6 +44,107 @@ const startOfDayKST = (date: Date) => {
   const ms = date.getTime() + KST_OFFSET_MS;
   const truncated = Math.floor(ms / DAY_MS) * DAY_MS;
   return new Date(truncated - KST_OFFSET_MS);
+};
+
+const startOfMonthKST = (date: Date) => {
+  const d = new Date(date);
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth();
+  const utcMonthStart = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+  return startOfDayKST(utcMonthStart);
+};
+
+const addMonths = (date: Date, months: number) => {
+  const d = new Date(date);
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth();
+  return startOfMonthKST(new Date(Date.UTC(year, month + months, 1, 0, 0, 0, 0)));
+};
+
+const ensureMonthlyRoomsThrough = async (targetMonth: Date) => {
+  if (targetMonth < START_OF_MONTH_TRACKING) return;
+
+  const latest = await monthlyRoomCreationModel
+    .findOne({ month: { $lte: targetMonth } })
+    .sort({ month: -1 })
+    .lean();
+
+  let cursorMonth = latest
+    ? addMonths(new Date(latest.month), 1)
+    : START_OF_MONTH_TRACKING;
+
+  if (cursorMonth > targetMonth) return;
+
+  const cumulativeBase = latest?.cumulativeRooms ?? 0;
+  const ops = [];
+  let runningTotal = cumulativeBase;
+
+  for (
+    let month = cursorMonth.getTime();
+    month <= targetMonth.getTime();
+    month = addMonths(new Date(month), 1).getTime()
+  ) {
+    const monthStart = new Date(month);
+    const nextMonth = addMonths(monthStart, 1);
+    const count = await roomModel.countDocuments({
+      madeat: { $gte: monthStart, $lt: nextMonth },
+    });
+    runningTotal += count;
+    ops.push({
+      updateOne: {
+        filter: { month: monthStart },
+        update: { month: monthStart, cumulativeRooms: runningTotal },
+        upsert: true,
+      },
+    });
+  }
+
+  if (ops.length > 0) {
+    await monthlyRoomCreationModel.bulkWrite(ops);
+  }
+};
+
+const ensureMonthlyUsersThrough = async (targetMonth: Date) => {
+  if (targetMonth < START_OF_MONTH_TRACKING) return;
+
+  const latest = await monthlyUserCreationModel
+    .findOne({ month: { $lte: targetMonth } })
+    .sort({ month: -1 })
+    .lean();
+
+  let cursorMonth = latest
+    ? addMonths(new Date(latest.month), 1)
+    : START_OF_MONTH_TRACKING;
+
+  if (cursorMonth > targetMonth) return;
+
+  const cumulativeBase = latest?.cumulativeUsers ?? 0;
+  const ops = [];
+  let runningTotal = cumulativeBase;
+
+  for (
+    let month = cursorMonth.getTime();
+    month <= targetMonth.getTime();
+    month = addMonths(new Date(month), 1).getTime()
+  ) {
+    const monthStart = new Date(month);
+    const nextMonth = addMonths(monthStart, 1);
+    const count = await userModel.countDocuments({
+      joinat: { $gte: monthStart, $lt: nextMonth },
+    });
+    runningTotal += count;
+    ops.push({
+      updateOne: {
+        filter: { month: monthStart },
+        update: { month: monthStart, cumulativeUsers: runningTotal },
+        upsert: true,
+      },
+    });
+  }
+
+  if (ops.length > 0) {
+    await monthlyUserCreationModel.bulkWrite(ops);
+  }
 };
 
 export const getCumulativeAt = async (
@@ -384,6 +490,92 @@ export const userSavingsHandler: RequestHandler = async (req, res) => {
     logger.error(err);
     return res.status(500).json({
       error: "Statistics/users/savings : internal server error",
+    });
+  }
+};
+
+export const monthlyRoomCreationHandler: RequestHandler = async (_req, res) => {
+  try {
+    const todayKST = startOfMonthKST(new Date());
+    const lastMonthStart = addMonths(todayKST, -1);
+
+    if (lastMonthStart < START_OF_MONTH_TRACKING) {
+      return res.json({
+        metric: "monthly-room-creation",
+        timezone: SEOUL_TIMEZONE,
+        range: null,
+        months: [],
+      });
+    }
+
+    await ensureMonthlyRoomsThrough(lastMonthStart);
+
+    const months = await monthlyRoomCreationModel
+      .find({ month: { $lte: lastMonthStart } })
+      .sort({ month: 1 })
+      .lean();
+
+    const responseMonths = months.map((doc) => ({
+      month: doc.month.toISOString(),
+      cumulativeRooms: doc.cumulativeRooms,
+    }));
+
+    return res.json({
+      metric: "monthly-room-creation",
+      timezone: SEOUL_TIMEZONE,
+      range: {
+        startMonth: responseMonths[0]?.month ?? null,
+        endMonth: responseMonths.at(-1)?.month ?? null,
+      },
+      months: responseMonths,
+    });
+  } catch (err) {
+    logger.error(err);
+    return res.status(500).json({
+      error: "Statistics/room-creation/monthly : internal server error",
+    });
+  }
+};
+
+export const monthlyUserCreationHandler: RequestHandler = async (_req, res) => {
+  try {
+    const todayKST = startOfMonthKST(new Date());
+    const lastMonthStart = addMonths(todayKST, -1);
+
+    if (lastMonthStart < START_OF_MONTH_TRACKING) {
+      return res.json({
+        metric: "monthly-user-creation",
+        timezone: SEOUL_TIMEZONE,
+        range: null,
+        months: [],
+      });
+    }
+
+    await ensureMonthlyUsersThrough(lastMonthStart);
+
+    const months = await monthlyUserCreationModel
+      .find({ month: { $lte: lastMonthStart } })
+      .sort({ month: 1 })
+      .lean();
+
+    const responseMonths = months.map((doc) => ({
+      month: doc.month.toISOString(),
+      cumulativeUsers: doc.cumulativeUsers,
+    }));
+
+    return res.json({
+      metric: "monthly-user-creation",
+      timezone: SEOUL_TIMEZONE,
+      range: {
+        startMonth: responseMonths[0]?.month ?? null,
+        endMonth: responseMonths.at(-1)?.month ?? null,
+      },
+      months: responseMonths,
+    });
+  } catch (err) {
+    logger.error(err);
+    return res.status(500).json({
+      error: "Statistics/users/monthly : internal server error",
     });
   }
 };

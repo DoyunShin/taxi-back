@@ -32,6 +32,18 @@ router.get(
 );
 
 router.get(
+  "/room-creation/monthly",
+  validateQuery(statisticsZod.monthlyRoomCreationHandler),
+  statisticsHandlers.monthlyRoomCreationHandler
+);
+
+router.get(
+  "/users/monthly",
+  validateQuery(statisticsZod.monthlyUserCreationHandler),
+  statisticsHandlers.monthlyUserCreationHandler
+);
+
+router.get(
   "/room-creation/hourly",
   validateQuery(statisticsZod.hourlyRoomCreationHandler),
   statisticsHandlers.hourlyRoomCreationHandler
