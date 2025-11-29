@@ -56,10 +56,13 @@ const startOfMonthKST = (date: Date) => {
 };
 
 const addMonths = (date: Date, months: number) => {
-  const d = new Date(date);
-  const year = d.getUTCFullYear();
-  const month = d.getUTCMonth();
-  return startOfMonthKST(new Date(Date.UTC(year, month + months, 1, 0, 0, 0, 0)));
+  // Shift to KST before adjusting the month so KST month boundaries stored in UTC advance correctly.
+  const kstDate = new Date(date.getTime() + KST_OFFSET_MS);
+  const year = kstDate.getUTCFullYear();
+  const month = kstDate.getUTCMonth();
+  return startOfMonthKST(
+    new Date(Date.UTC(year, month + months, 1, 0, 0, 0, 0))
+  );
 };
 
 const ensureMonthlyRoomsThrough = async (targetMonth: Date) => {
