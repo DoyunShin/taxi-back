@@ -19,8 +19,6 @@ export const statisticsZod = {
   hourlyRoomCreationHandler: z.object({
     locationId: z.string().regex(patterns.objectId),
     dayOfWeek,
-    startDate: dateString,
-    endDate: dateString,
   }),
   savingsPeriodHandler: z.object({
     startDate: dateString,

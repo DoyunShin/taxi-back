@@ -32,7 +32,7 @@ router.get(
 );
 
 router.get(
-  "/room-creation/hourly-average",
+  "/room-creation/hourly",
   validateQuery(statisticsZod.hourlyRoomCreationHandler),
   statisticsHandlers.hourlyRoomCreationHandler
 );

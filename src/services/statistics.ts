@@ -30,9 +30,16 @@ export const startOfDayUTC = (date: Date) => {
 const SEOUL_TIMEZONE = "Asia/Seoul";
 const DAY_MS = 86_400_000;
 const START_OF_TRACKING = startOfDayUTC(new Date("2022-01-01T00:00:00Z"));
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 const addDays = (date: Date, days: number) =>
   new Date(date.getTime() + days * DAY_MS);
+
+const startOfDayKST = (date: Date) => {
+  const ms = date.getTime() + KST_OFFSET_MS;
+  const truncated = Math.floor(ms / DAY_MS) * DAY_MS;
+  return new Date(truncated - KST_OFFSET_MS);
+};
 
 export const getCumulativeAt = async (
   targetDay: Date,
@@ -383,23 +390,13 @@ export const userSavingsHandler: RequestHandler = async (req, res) => {
 
 export const hourlyRoomCreationHandler: RequestHandler = async (req, res) => {
   try {
-    const { locationId, dayOfWeek, startDate, endDate } =
+    const { locationId, dayOfWeek } =
       req.query as unknown as HourlyRoomCreationQuery;
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      return res.status(400).json({
-        error: "Statistics/hourly-room-creation : invalid date format",
-      });
-    }
-
-    if (start.getTime() > end.getTime()) {
-      return res.status(400).json({
-        error: "Statistics/hourly-room-creation : startDate is after endDate",
-      });
-    }
+    // Fixed window: last 28 days (yesterday back 27), in KST.
+    const todayKST = startOfDayKST(new Date());
+    const endExclusive = todayKST;
+    const start = addDays(endExclusive, -28);
 
     const location = await locationModel
       .findById(locationId, "enName koName")
@@ -417,13 +414,13 @@ export const hourlyRoomCreationHandler: RequestHandler = async (req, res) => {
       {
         $match: {
           $or: [{ from: locationObjectId }, { to: locationObjectId }],
-          madeat: { $type: "date", $gte: start, $lte: end },
+          time: { $type: "date", $gte: start, $lt: endExclusive },
         },
       },
       {
         $addFields: {
           dayOfWeek: {
-            $dayOfWeek: { date: "$madeat", timezone: SEOUL_TIMEZONE },
+            $dayOfWeek: { date: "$time", timezone: SEOUL_TIMEZONE },
           },
         },
       },
@@ -435,28 +432,12 @@ export const hourlyRoomCreationHandler: RequestHandler = async (req, res) => {
               $group: {
                 _id: {
                   hour: {
-                    $hour: { date: "$madeat", timezone: SEOUL_TIMEZONE },
+                    $hour: { date: "$time", timezone: SEOUL_TIMEZONE },
                   },
                 },
                 count: { $sum: 1 },
               },
             },
-          ],
-          days: [
-            {
-              $group: {
-                _id: {
-                  date: {
-                    $dateToString: {
-                      format: "%Y-%m-%d",
-                      date: "$madeat",
-                      timezone: SEOUL_TIMEZONE,
-                    },
-                  },
-                },
-              },
-            },
-            { $count: "value" },
           ],
         },
       },
@@ -476,31 +457,25 @@ export const hourlyRoomCreationHandler: RequestHandler = async (req, res) => {
       }
     }
 
-    const consideredDays = aggregationResult?.days?.[0]?.value ?? 0;
-    const hourlyAverages = hourlyCounts.map((count) =>
-      consideredDays > 0 ? count / consideredDays : 0
-    );
-
-    const intervals = hourlyAverages.map((averageRooms, hour) => ({
+    const intervals = hourlyCounts.map((totalRooms, hour) => ({
       hour,
       timeRange: `${String(hour).padStart(2, "0")}:00-${String(
         hour + 1
       ).padStart(2, "0")}:00`,
-      averageRooms,
+      totalRooms,
     }));
 
     return res.json({
       metric: "hourly-room-creation",
       timezone: SEOUL_TIMEZONE,
       startDate: start.toISOString(),
-      endDate: end.toISOString(),
+      endDate: new Date(endExclusive.getTime() - 1).toISOString(),
       location: {
         id: location._id.toString(),
         enName: location.enName,
         koName: location.koName,
       },
       dayOfWeek,
-      consideredDays,
       intervals,
     });
   } catch (err) {
