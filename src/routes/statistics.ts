@@ -44,6 +44,12 @@ router.get(
 );
 
 router.get(
+  "/users/done-room-count",
+  validateQuery(statisticsZod.userDoneRoomCountHandler),
+  statisticsHandlers.userDoneRoomCountHandler
+);
+
+router.get(
   "/room-creation/hourly",
   validateQuery(statisticsZod.hourlyRoomCreationHandler),
   statisticsHandlers.hourlyRoomCreationHandler

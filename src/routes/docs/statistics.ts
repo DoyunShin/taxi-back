@@ -437,6 +437,59 @@ statisticsDocs[`${apiPrefix}/users/monthly`] = {
   },
 };
 
+statisticsDocs[`${apiPrefix}/users/done-room-count`] = {
+  get: {
+    tags: [tag],
+    summary: "사용자 완료 방 개수",
+    description:
+      "특정 사용자의 완료된(doneRoom) 방 개수를 반환합니다.",
+    parameters: [
+      {
+        in: "query",
+        name: "userId",
+        required: true,
+        schema: { type: "string", pattern: objectId.source },
+        description: "조회할 사용자 ObjectId",
+      },
+    ],
+    responses: {
+      200: {
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                metric: { type: "string", example: "user-done-room-count" },
+                userId: { type: "string" },
+                doneRoomCount: { type: "number" },
+              },
+            },
+            example: {
+              metric: "user-done-room-count",
+              userId: "665b4d2c7c6f3fd1c1234567",
+              doneRoomCount: 12,
+            },
+          },
+        },
+      },
+      404: {
+        content: {
+          "text/html": {
+            example: "Statistics/users/done-room-count : user not found",
+          },
+        },
+      },
+      500: {
+        content: {
+          "text/html": {
+            example: "Statistics/users/done-room-count : internal server error",
+          },
+        },
+      },
+    },
+  },
+};
+
 statisticsDocs[`${apiPrefix}/room-creation/hourly`] = {
   get: {
     tags: [tag],

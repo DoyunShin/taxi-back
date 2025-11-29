@@ -17,6 +17,7 @@ import type {
   MonthlyUserCreationQuery,
   SavingsPeriodQuery,
   SavingsQuery,
+  UserDoneRoomCountQuery,
   UserSavingsQuery,
 } from "@/routes/docs/schemas/statisticsSchema";
 
@@ -466,9 +467,9 @@ const calculateUserSavings = async (userId: Types.ObjectId) => {
 
 export const userSavingsHandler: RequestHandler = async (req, res) => {
   try {
-    const { userId } = req.query as unknown as UserSavingsQuery;
-    const user = await userModel.findOne({ _id: userId, withdraw: false });
-    if (!user) {
+  const { userId } = req.query as unknown as UserSavingsQuery;
+  const user = await userModel.findOne({ _id: userId, withdraw: false });
+  if (!user) {
       return res
         .status(404)
         .json({ error: "Statistics/users/savings : user not found" });
@@ -490,6 +491,29 @@ export const userSavingsHandler: RequestHandler = async (req, res) => {
     logger.error(err);
     return res.status(500).json({
       error: "Statistics/users/savings : internal server error",
+    });
+  }
+};
+
+export const userDoneRoomCountHandler: RequestHandler = async (req, res) => {
+  try {
+    const { userId } = req.query as unknown as UserDoneRoomCountQuery;
+    const user = await userModel.findOne({ _id: userId, withdraw: false });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ error: "Statistics/users/done-room-count : user not found" });
+    }
+
+    return res.json({
+      metric: "user-done-room-count",
+      userId: user._id.toString(),
+      doneRoomCount: user.doneRoom?.length ?? 0,
+    });
+  } catch (err) {
+    logger.error(err);
+    return res.status(500).json({
+      error: "Statistics/users/done-room-count : internal server error",
     });
   }
 };
