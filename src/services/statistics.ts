@@ -27,18 +27,20 @@ export const startOfDayUTC = (date: Date) => {
   return d;
 };
 
-const addDays = (date: Date, days: number) =>
-  new Date(date.getTime() + days * DAY_MS);
-
 const SEOUL_TIMEZONE = "Asia/Seoul";
 const DAY_MS = 86_400_000;
 const START_OF_TRACKING = startOfDayUTC(new Date("2022-01-01T00:00:00Z"));
+
+const addDays = (date: Date, days: number) =>
+  new Date(date.getTime() + days * DAY_MS);
 
 export const getCumulativeAt = async (
   targetDay: Date,
   startHint?: Date
 ): Promise<number> => {
-  const day = startOfDayUTC(targetDay);
+  const todayStart = startOfDayUTC(new Date());
+  const day =
+    targetDay >= todayStart ? addDays(todayStart, -1) : startOfDayUTC(targetDay);
   await ensureCumulativeSavingsThrough(day, startHint);
   const doc = await dailySavingsModel
     .findOne({ date: { $lte: day } })
@@ -51,7 +53,14 @@ export const ensureCumulativeSavingsThrough = async (
   targetDay: Date,
   startHint?: Date
 ) => {
-  const target = startOfDayUTC(targetDay);
+  const todayStart = startOfDayUTC(new Date());
+  // Never write today's row; cap at yesterday.
+  const cappedTarget =
+    targetDay >= todayStart ? addDays(todayStart, -1) : startOfDayUTC(targetDay);
+
+  if (cappedTarget < START_OF_TRACKING) return;
+
+  const target = cappedTarget;
   const latest = await dailySavingsModel
     .findOne({ date: { $lte: target } })
     .sort({ date: -1 })
