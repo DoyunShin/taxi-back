@@ -632,7 +632,7 @@ export const hourlyRoomCreationHandler: RequestHandler = async (req, res) => {
     const aggregationPipeline: PipelineStage[] = [
       {
         $match: {
-          $or: [{ from: locationObjectId }, { to: locationObjectId }],
+          from: locationObjectId,
           time: { $type: "date", $gte: start, $lt: endExclusive },
         },
       },
