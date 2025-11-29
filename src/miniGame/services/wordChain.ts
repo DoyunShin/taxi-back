@@ -10,6 +10,7 @@ const wordChainTimeouts: Map<string, NodeJS.Timeout> = new Map();
 const TIMEOUT_MS = 30 * 1000;
 
 const JudgeTimeout = async (io: Server, roomId: Types.ObjectId) => {
+  const roomIdStr = roomId.toString();
   const game = await wordChainModel.findOne({
     roomId: roomId,
     finished: false,
@@ -26,6 +27,7 @@ const JudgeTimeout = async (io: Server, roomId: Types.ObjectId) => {
   const droppedPlayer = await userModel.findById(droppedPlayerId);
   const playerName = droppedPlayer ? droppedPlayer.nickname : "알 수 없음";
   game.players.splice(game.currentPlayerIndex, 1);
+
   await emitChatEvent(io, {
     roomId,
     type: "wordChain",
@@ -35,24 +37,35 @@ const JudgeTimeout = async (io: Server, roomId: Types.ObjectId) => {
   if (game.players.length === 1) {
     game.finished = true;
     await game.save();
+
     const winnerId = game.players[0];
     const winner = await userModel.findById(winnerId);
     const winnerName = winner ? winner.nickname : "알 수 없음";
+
     await emitChatEvent(io, {
       roomId,
       type: "wordChain",
       content: `${winnerName}(이)가 승리했습니다.`,
     });
-    clearTimeout(wordChainTimeouts.get(roomId.toString()));
-    wordChainTimeouts.delete(roomId.toString());
+
+    const timeout = wordChainTimeouts.get(roomIdStr);
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    wordChainTimeouts.delete(roomIdStr);
     return;
   } else if (game.players.length <= 0) {
     // Definitely something is wrong
     // So just shut the game down.
     game.finished = true;
     await game.save();
-    clearTimeout(wordChainTimeouts.get(roomId.toString()));
-    wordChainTimeouts.delete(roomId.toString());
+
+    const timeout = wordChainTimeouts.get(roomIdStr);
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+    wordChainTimeouts.delete(roomIdStr);
+
     await emitChatEvent(io, {
       roomId,
       type: "wordChain",
@@ -91,6 +104,9 @@ export const wordChain = async (
     return { success: false, error: "Room not found" };
   }
 
+  const playerIdStr = player.toString();
+  const roomIdStr = roomId.toString();
+
   const game = await wordChainModel.findOne({
     roomId: roomId,
     finished: false,
@@ -98,14 +114,31 @@ export const wordChain = async (
   if (!game) {
     const partId = room.part.map((participant) => participant.user);
     const partIdStr = partId.map((id) => id.toString());
-    if (!partIdStr.includes(player.toString())) {
+    if (!partIdStr.includes(playerIdStr)) {
       return {
         success: false,
         error: `Player ${player} not in room ${partId}`,
       };
     }
-    const currentPlayerIndex = (partId.indexOf(player) + 1) % partId.length; // since part.includes(player) is true, this will never be -1
+    const currentPlayerIndex =
+      (partIdStr.indexOf(playerIdStr) + 1) % partIdStr.length; // since part.includes(player) is true, this will never be -1
 
+    logger.info(
+      `participant list: ${partIdStr}, starting player index: ${currentPlayerIndex}`
+    );
+
+    const wordExists = await dictionaryModel.findOne({ word });
+    logger.info(
+      `Checking if word "${word}" exists in dictionary: ${!!wordExists}`
+    );
+    if (!wordExists) {
+      await emitChatEvent(io, {
+        roomId,
+        type: "wordChain",
+        content: `"${word}"(은)는 사전에 없는 단어입니다. 다른 단어를 입력해주세요.`,
+      });
+      return;
+    }
     await wordChainModel.create({
       roomId: roomId,
       currentWord: word,
@@ -128,7 +161,7 @@ export const wordChain = async (
     });
 
     const timeoutId = setTimeout(JudgeTimeout, TIMEOUT_MS, io, roomId);
-    wordChainTimeouts.set(roomId.toString(), timeoutId);
+    wordChainTimeouts.set(roomIdStr, timeoutId);
     return { success: true };
   } else {
     if (
@@ -148,6 +181,7 @@ export const wordChain = async (
       });
       return;
     }
+
     if (game.usedWords.includes(word)) {
       await emitChatEvent(io, {
         roomId,
@@ -156,6 +190,7 @@ export const wordChain = async (
       });
       return;
     }
+
     const lastChar = game.currentWord.slice(-1);
     if (word[0] !== lastChar) {
       await emitChatEvent(io, {
@@ -165,7 +200,12 @@ export const wordChain = async (
       });
       return;
     }
+
     const wordExists = await dictionaryModel.findOne({ word });
+    logger.info(
+      `Checking if word "${word}" exists in dictionary: ${!!wordExists}`
+    );
+
     if (!wordExists) {
       await emitChatEvent(io, {
         roomId,
@@ -194,10 +234,14 @@ export const wordChain = async (
         nextPlayer.nickname
       }입니다. ${word.slice(-1)}로 시작하는 단어를 입력해주세요.`,
     });
-    clearTimeout(wordChainTimeouts.get(roomId.toString()));
-    wordChainTimeouts.delete(roomId.toString());
+
+    const prevTimeout = wordChainTimeouts.get(roomIdStr);
+    if (prevTimeout) clearTimeout(prevTimeout);
+    wordChainTimeouts.delete(roomIdStr);
+
     const timeoutId = setTimeout(JudgeTimeout, TIMEOUT_MS, io, roomId);
-    wordChainTimeouts.set(roomId.toString(), timeoutId);
+    wordChainTimeouts.set(roomIdStr, timeoutId);
+
     const nextPlayerName = nextPlayer.nickname;
     return {
       success: true,

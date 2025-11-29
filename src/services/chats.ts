@@ -170,6 +170,7 @@ export const sendChatHandler: RequestHandler = async (req, res) => {
         .status(403)
         .send("Chat/send : user did not participated in the room");
     }
+    logger.info(`User ${user._id} sent a chat${content}`);
 
     if (type === "wordChain") {
       const room = await roomModel.findById(roomId);
