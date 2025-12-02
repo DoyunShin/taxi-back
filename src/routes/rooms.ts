@@ -99,12 +99,6 @@ router.post(
   roomHandlers.toggleCarrierHandler
 );
 
-router.get(
-  "/carrier/status",
-  validateQuery(roomsZod.carrierStatusHandler),
-  roomHandlers.carrierStatusHandler
-);
-
 // json으로 수정할 값들을 받아 방의 정보를 수정합니다.
 // request JSON
 // roomId, name, from, to, time

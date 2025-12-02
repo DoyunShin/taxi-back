@@ -16,7 +16,6 @@ import type {
   SearchByTimeGapQuery,
   SearchQuery,
   ToggleCarrierBody,
-  CarrierStatusQuery,
 } from "@/routes/docs/schemas/roomsSchema";
 import type { Room } from "@/types/mongo";
 
@@ -846,54 +845,6 @@ export const toggleCarrierHandler: RequestHandler = async (req, res) => {
     logger.error(err);
     return res.status(500).json({
       error: "Rooms/carrier/toggle : internal server error",
-    });
-  }
-};
-
-export const carrierStatusHandler: RequestHandler = async (req, res) => {
-  const { roomId } = req.query as unknown as CarrierStatusQuery;
-
-  try {
-    const user = await userModel.findOne({ _id: req.userOid, withdraw: false });
-    if (!user) {
-      return res
-        .status(400)
-        .json({ error: "Rooms/carrier/status : User not found" });
-    }
-
-    const roomObject = await roomModel
-      .findOne({
-        _id: roomId,
-        part: {
-          $elemMatch: {
-            user: user._id,
-          },
-        },
-      })
-      .lean()
-      .populate<RoomPopulatePath>(roomPopulateOption);
-
-    if (!roomObject) {
-      return res.status(404).json({
-        error: "Rooms/carrier/status : cannot find room info",
-      });
-    }
-
-    const carriers = roomObject.part.map((participant) => ({
-      userId: participant.user?._id?.toString() ?? "",
-      name: participant.user?.name ?? "",
-      nickname: participant.user?.nickname ?? "",
-      hasCarrier: participant.hasCarrier ?? false,
-    }));
-
-    return res.json({
-      roomId: roomObject._id!.toString(),
-      carriers,
-    });
-  } catch (err) {
-    logger.error(err);
-    return res.status(500).json({
-      error: "Rooms/carrier/status : internal server error",
     });
   }
 };
