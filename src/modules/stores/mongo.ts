@@ -157,7 +157,6 @@ const roomSchema = new Schema({
   settlementTotal: { type: Number, default: 0, required: true },
   maxPartLength: { type: Number, required: true, default: 4 },
   emojiIdentifier: { type: String }, // 방 구분용 이모지
-  numericIdentifier: { type: String }, // 방 구분용 숫자
 });
 
 export const roomModel = model("Room", roomSchema);

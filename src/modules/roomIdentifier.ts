@@ -3,48 +3,25 @@ import { roomModel } from "@/modules/stores/mongo";
 
 const timeWindow = 1000 * 60 * 30; // 30분
 const emojis = [
-  "🍎",
-  "🍊",
-  "🍋",
-  "🍉",
-  "🍇",
-  "🍓",
-  "🍒",
-  "🍍",
-  "🥝",
-  "🥥",
-  "🍑",
-  "🍌",
-  "🥕",
-  "🌽",
-  "🥦",
-  "🍄",
+  "apple", // 🍎
+  "orange", // 🍊
+  "lemon", // 🍋
+  "watermelon", // 🍉
+  "grape", // 🍇
+  "strawberry", // 🍓
+  "cherry", // 🍒
+  "pineapple", // 🍍
+  "kiwi", // 🥝
+  "coconut", // 🥥
+  "peach", // 🍑
+  "banana", // 🍌
+  "carrot", // 🥕
+  "corn", // 🌽
+  "broccoli", // 🥦
+  "mushroom", // 🍄
 ];
-const numericIdentifierDigits = 3;
-const numericIdentifierRetries = 10;
 
-const selectEmojiIdentifier = (usedEmojis: Set<string>) => {
-  const availableEmojis = emojis.filter((emoji) => !usedEmojis.has(emoji));
-  if (availableEmojis.length === 0) {
-    return undefined;
-  }
-  return availableEmojis[crypto.randomInt(availableEmojis.length)];
-};
-
-const selectNumericIdentifier = (usedNumbers: Set<string>) => {
-  for (let attempt = 0; attempt < numericIdentifierRetries; attempt++) {
-    const number = crypto.randomInt(10 ** numericIdentifierDigits);
-    const numberString = number
-      .toString()
-      .padStart(numericIdentifierDigits, "0");
-    if (!usedNumbers.has(numberString)) {
-      return numberString;
-    }
-  }
-  return undefined;
-};
-
-export const allocateRoomIdentifiers = async (departureTime: Date) => {
+export const allocateEmojiIdentifier = async (departureTime: Date) => {
   const nearbyRooms = await roomModel
     .find(
       {
@@ -53,7 +30,7 @@ export const allocateRoomIdentifiers = async (departureTime: Date) => {
           $lte: departureTime.getTime() + timeWindow,
         },
       },
-      "emojiIdentifier numericIdentifier"
+      "emojiIdentifier"
     )
     .lean();
 
@@ -62,14 +39,9 @@ export const allocateRoomIdentifiers = async (departureTime: Date) => {
       .map((room) => room.emojiIdentifier)
       .filter((identifier): identifier is string => Boolean(identifier))
   );
-  const usedNumbers = new Set(
-    nearbyRooms
-      .map((room) => room.numericIdentifier)
-      .filter((identifier): identifier is string => Boolean(identifier))
-  );
+  const availableEmojis = emojis.filter((emoji) => !usedEmojis.has(emoji));
 
-  return {
-    emojiIdentifier: selectEmojiIdentifier(usedEmojis),
-    numericIdentifier: selectNumericIdentifier(usedNumbers),
-  };
+  return availableEmojis.length > 0
+    ? availableEmojis[crypto.randomInt(availableEmojis.length)]
+    : undefined;
 };
