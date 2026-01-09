@@ -18,6 +18,7 @@ if (process.env.DB_PATH === undefined) {
   process.exit(1);
 }
 
+export const frontUrl = process.env.FRONT_URL || "http://localhost:3000"; // optional
 export const nodeEnv = process.env.NODE_ENV; // required ("production" or "development" or "test")
 export const mongo = process.env.DB_PATH; // required
 export const session = {
@@ -44,12 +45,10 @@ export const jwt = {
   secretKey: process.env.JWT_SECRET_KEY || "TAXI_JWT_KEY", // optional
   option: {
     algorithm: "HS256" as Algorithm,
-    // FIXME: remove FRONT_URL from issuer. 단, issuer를 변경하면 이전에 발급했던 모든 JWT가 무효화됩니다.
-    // See https://github.com/sparcs-kaist/taxi-back/issues/415
-    issuer: process.env.FRONT_URL || "http://localhost:3000", // optional (default = "http://localhost:3000")
+    issuer: frontUrl,
   },
-  TOKEN_EXPIRED: -3,
-  TOKEN_INVALID: -2,
+  TOKEN_EXPIRED: -3 as const,
+  TOKEN_INVALID: -2 as const,
 };
 export const googleApplicationCredentials =
   process.env.GOOGLE_APPLICATION_CREDENTIALS &&
@@ -63,14 +62,18 @@ export const slackWebhookUrl = {
 };
 export const eventConfig = (process.env.EVENT_CONFIG &&
   JSON.parse(process.env.EVENT_CONFIG)) || {
-  mode: "2025spring",
-  credit: { name: "넙죽코인", initialAmount: 0 },
+  mode: "2025fall",
+  credit: { name: "응모권", initialAmount: 0 },
   period: {
-    startAt: "2025-02-21T00:00:00+09:00",
-    endAt: "2025-03-14T00:00:00+09:00",
+    startAt: "2025-09-01T00:00:00+09:00",
+    endAt: "2025-10-30T00:00:00+09:00",
   },
 };
 export const naverMap = {
   apiId: process.env.NAVER_MAP_API_ID || "", // optional
   apiKey: process.env.NAVER_MAP_API_KEY || "", // optional
+};
+export const oneApp = {
+  secretKey: process.env.ONEAPP_TOKEN_SECRET || "SPARCS_APP", // optional
+  refreshTokenExpiry: 30 * 24 * 3600 * 1000, // 30일, ms 단위입니다.
 };
