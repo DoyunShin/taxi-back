@@ -22,8 +22,20 @@ import type {
 } from "@/routes/docs/schemas/statisticsSchema";
 
 type PopulatedRoom = Room & {
-  from?: { _id?: Types.ObjectId; enName?: string; koName?: string } | null;
-  to?: { _id?: Types.ObjectId; enName?: string; koName?: string } | null;
+  from?: {
+    _id?: Types.ObjectId;
+    enName?: string;
+    koName?: string;
+    latitude?: number;
+    longitude?: number;
+  } | null;
+  to?: {
+    _id?: Types.ObjectId;
+    enName?: string;
+    koName?: string;
+    latitude?: number;
+    longitude?: number;
+  } | null;
 };
 
 export const startOfDayUTC = (date: Date) => {
@@ -213,14 +225,14 @@ export const ensureCumulativeSavingsThrough = async (
     })
     .sort({ time: 1 })
     .populate([
-      { path: "from", select: "_id enName koName" },
-      { path: "to", select: "_id enName koName" },
+      { path: "from", select: "_id enName koName latitude longitude" },
+      { path: "to", select: "_id enName koName latitude longitude" },
     ])
     .lean<PopulatedRoom[]>();
 
   const dayTotals = new Map<number, number>();
   for (const room of rooms) {
-    const { totalSavings } = getRoomSavings(room);
+    const { totalSavings } = await getRoomSavings(room);
     const dayKey = startOfDayUTC(new Date(room.time)).getTime();
     dayTotals.set(dayKey, (dayTotals.get(dayKey) ?? 0) + totalSavings);
   }
@@ -290,8 +302,8 @@ export const savingsHandler: RequestHandler = async (req, res) => {
       .find(filter)
       .sort({ time: 1 })
       .populate([
-        { path: "from", select: "_id enName koName" },
-        { path: "to", select: "_id enName koName" },
+        { path: "from", select: "_id enName koName latitude longitude" },
+        { path: "to", select: "_id enName koName latitude longitude" },
       ])
       .lean<PopulatedRoom[]>();
 
@@ -312,7 +324,7 @@ export const savingsHandler: RequestHandler = async (req, res) => {
       const participantCount = room.part?.length ?? 0;
       if (participantCount === 0) continue;
 
-      const { estimatedFare, savingsPerUser } = getRoomSavings(room);
+      const { estimatedFare, savingsPerUser } = await getRoomSavings(room);
       const totalSavingsForRoom = isTotalMode
         ? savingsPerUser * participantCount
         : savingsPerUser;
@@ -419,8 +431,8 @@ export const savingsTotalHandler: RequestHandler = async (_req, res) => {
         time: { $gte: todayStart, $lte: now },
       })
       .populate([
-        { path: "from", select: "_id enName koName" },
-        { path: "to", select: "_id enName koName" },
+        { path: "from", select: "_id enName koName latitude longitude" },
+        { path: "to", select: "_id enName koName latitude longitude" },
       ])
       .lean<PopulatedRoom[]>();
 
@@ -457,15 +469,18 @@ const calculateUserSavings = async (userId: Types.ObjectId) => {
       },
     })
     .populate([
-      { path: "from", select: "_id enName koName" },
-      { path: "to", select: "_id enName koName" },
+      { path: "from", select: "_id enName koName latitude longitude" },
+      { path: "to", select: "_id enName koName latitude longitude" },
     ])
     .lean<PopulatedRoom[]>();
 
-  return rooms.reduce((sum, room) => {
-    const { savingsPerUser } = getRoomSavings(room);
-    return sum + savingsPerUser;
-  }, 0);
+  let totalSavings = 0;
+  for (const room of rooms) {
+    const { savingsPerUser } = await getRoomSavings(room);
+    totalSavings += savingsPerUser;
+  }
+
+  return totalSavings;
 };
 
 export const userSavingsHandler: RequestHandler = async (req, res) => {

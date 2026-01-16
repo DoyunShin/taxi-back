@@ -1,9 +1,14 @@
 import logger from "@/modules/logger";
+import { callTaxiFare, scaledTime } from "@/modules/fare";
+import { taxiFareModel } from "@/modules/stores/mongo";
+import { Types } from "mongoose";
 
 const buildFareKey = (fromName: string, toName: string) =>
   [fromName, toName].sort().join("||");
 
-// Example fare table for all known routes. Keys are unordered pairs of location names.
+const TIME_CONSTANTS = 48;
+
+// 예상 택시 요금 테이블(사용안함)
 const ESTIMATED_FARE_TABLE: Record<string, number> = {
   // Taxi Stand
   [buildFareKey("Taxi Stand", "Daejeon Station")]: 10000,
@@ -240,23 +245,94 @@ const ESTIMATED_FARE_TABLE: Record<string, number> = {
 
 export const DEFAULT_FARE = 12000;
 
-export const getEstimatedFare = (fromName?: string, toName?: string) => {
+const getFallbackFare = (fromName?: string, toName?: string) => {
   if (!fromName || !toName) return DEFAULT_FARE;
   const key = buildFareKey(fromName, toName);
   return ESTIMATED_FARE_TABLE[key] ?? DEFAULT_FARE;
 };
 
-type RoomWithNames = {
-  from?: { enName?: string | null } | null;
-  to?: { enName?: string | null } | null;
-  part?: { user: unknown }[] | null;
+type RoomLocation = {
+  _id?: Types.ObjectId | string | null;
+  enName?: string | null;
+  koName?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
-export const getRoomSavings = (room: RoomWithNames) => {
+type RoomWithNames = {
+  from?: RoomLocation | null;
+  to?: RoomLocation | null;
+  part?: { user: unknown }[] | null;
+  time?: Date | string | null;
+};
+
+const getCachedFare = async (
+  fromId?: Types.ObjectId | string | null,
+  toId?: Types.ObjectId | string | null,
+  time?: Date | string | null
+): Promise<number | null> => {
+  if (!fromId || !toId || !time) return null;
+
+  const timeValue = new Date(time);
+  if (Number.isNaN(timeValue.getTime())) return null;
+
+  const sTime = scaledTime(timeValue);
+  const fare = await taxiFareModel
+    .findOne({ from: fromId, to: toId, time: sTime }, { fare: 1 })
+    .lean();
+  if (fare?.fare && fare.fare > 0) return fare.fare;
+
+  const dayStart = Math.floor(sTime / TIME_CONSTANTS) * TIME_CONSTANTS;
+  if (dayStart === sTime) return null;
+
+  const dayFare = await taxiFareModel
+    .findOne({ from: fromId, to: toId, time: dayStart }, { fare: 1 })
+    .lean();
+  if (dayFare?.fare && dayFare.fare > 0) return dayFare.fare;
+
+  return null;
+};
+
+export const getEstimatedFare = async (room: RoomWithNames) => {
+  const fromName = room.from?.enName ?? undefined;
+  const toName = room.to?.enName ?? undefined;
+  const fallbackFare = getFallbackFare(fromName, toName);
+
+  const cachedFare = await getCachedFare(
+    room.from?._id ?? null,
+    room.to?._id ?? null,
+    room.time ?? null
+  );
+  if (cachedFare) return cachedFare;
+
+  if (
+    !room.from ||
+    !room.to ||
+    typeof room.from.latitude !== "number" ||
+    typeof room.from.longitude !== "number" ||
+    typeof room.to.latitude !== "number" ||
+    typeof room.to.longitude !== "number"
+  ) {
+    return fallbackFare;
+  }
+
+  try {
+    const fare = await callTaxiFare(room.from, room.to);
+    if (typeof fare === "number" && fare > 0) return fare;
+  } catch (err) {
+    logger.error(
+      `Savings : failed to fetch taxi fare - ${(err as Error).message}`
+    );
+  }
+
+  return fallbackFare;
+};
+
+export const getRoomSavings = async (room: RoomWithNames) => {
   const fromName = room.from?.enName ?? undefined;
   const toName = room.to?.enName ?? undefined;
   const participantCount = room.part?.length ?? 0;
-  if (!fromName || !toName || participantCount === 0) {
+  if (!room.from || !room.to || participantCount === 0) {
     logger.warn("Savings : missing location info or participants", {
       fromName,
       toName,
@@ -269,7 +345,7 @@ export const getRoomSavings = (room: RoomWithNames) => {
     };
   }
 
-  const estimatedFare = getEstimatedFare(fromName, toName);
+  const estimatedFare = await getEstimatedFare(room);
   const savingsPerUser =
     participantCount > 0
       ? (estimatedFare * (participantCount - 1)) / participantCount

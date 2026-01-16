@@ -47,15 +47,18 @@ const calculateUserSavings = async (userId: Types.ObjectId) => {
       },
     })
     .populate([
-      { path: "from", select: "_id enName koName" },
-      { path: "to", select: "_id enName koName" },
+      { path: "from", select: "_id enName koName latitude longitude" },
+      { path: "to", select: "_id enName koName latitude longitude" },
     ])
     .lean<PopulatedRoom[]>();
 
-  return rooms.reduce((sum, room) => {
-    const { savingsPerUser } = getRoomSavings(room);
-    return sum + savingsPerUser;
-  }, 0);
+  let totalSavings = 0;
+  for (const room of rooms) {
+    const { savingsPerUser } = await getRoomSavings(room);
+    totalSavings += savingsPerUser;
+  }
+
+  return totalSavings;
 };
 
 const applySavingsForUser = async (
@@ -63,7 +66,7 @@ const applySavingsForUser = async (
   room: PopulatedRoom
 ): Promise<void> => {
   try {
-    const { savingsPerUser } = getRoomSavings(room);
+    const { savingsPerUser } = await getRoomSavings(room);
 
     if (user.savings === null || user.savings === undefined) {
       const totalSavings = await calculateUserSavings(user._id);
