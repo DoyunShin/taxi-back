@@ -93,7 +93,6 @@ export const editOptionsHandler: RequestHandler = async (req, res) => {
         .send("Notifications/options : deviceToken not found");
     }
 
-    // FIXME : can refactor with using reduce
     type NewOptionsSignature = {
       [key: string]: boolean | string[] | undefined;
     };
