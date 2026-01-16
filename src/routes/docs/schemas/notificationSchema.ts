@@ -6,14 +6,22 @@ export const notificationZod = {
     deviceToken: z.string().min(1).max(1024),
   }),
   editOptionsHandler: z.object({
-    options: z.object({
-      chatting: z.boolean().optional(),
-      keywords: z.array(z.string()).optional(),
-      beforeDepart: z.boolean().optional(),
-      notice: z.boolean().optional(),
-      advertisement: z.boolean().optional(),
-    }),
+    options: z
+      .object({
+        chatting: z.boolean(),
+        keywords: z.array(z.string()),
+        beforeDepart: z.boolean(),
+        notice: z.boolean(),
+        advertisement: z.boolean(),
+      })
+      .partial(),
   }),
 };
 
 export const notificationSchema = zodToSchemaObject(notificationZod);
+export type RegisterDeviceTokenHandlerType = z.infer<
+  typeof notificationZod.registerDeviceTokenHandler
+>;
+export type EditOptionsHandlerType = z.infer<
+  typeof notificationZod.editOptionsHandler
+>;

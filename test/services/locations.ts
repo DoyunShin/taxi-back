@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { getAllLocationsHandler } from "../../src/services/locations";
+import { getAllLocationsHandler } from "@/services/locations";
 import httpMocks from "node-mocks-http";
 
 // locations.js 관련 1개의 handler을 테스트

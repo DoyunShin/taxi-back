@@ -2,6 +2,10 @@ import { userModel } from "@/modules/stores/mongo";
 import { notificationOptionModel } from "@/modules/stores/mongo";
 import logger from "@/modules/logger";
 import type { RequestHandler } from "express";
+import type {
+  RegisterDeviceTokenHandlerType,
+  EditOptionsHandlerType,
+} from "@/routes/docs/schemas/notificationSchema";
 
 import { registerDeviceToken, validateDeviceToken } from "@/modules/fcm";
 
@@ -11,7 +15,7 @@ import { contracts } from "@/lottery";
 export const registerDeviceTokenHandler: RequestHandler = async (req, res) => {
   try {
     // 해당 FCM device token이 유효한지 검사합니다.
-    const { deviceToken } = req.body;
+    const { deviceToken }: RegisterDeviceTokenHandlerType = req.body;
     const isValid = await validateDeviceToken(deviceToken);
     if (!isValid) {
       return res
@@ -79,7 +83,7 @@ export const optionsHandler: RequestHandler = async (req, res) => {
 
 export const editOptionsHandler: RequestHandler = async (req, res) => {
   try {
-    const { options } = req.body;
+    const { options }: EditOptionsHandlerType = req.body;
 
     // 세션에 deviceToken이 저장되어 있는지 검사합니다.
     const { deviceToken } = req.session;
@@ -90,21 +94,27 @@ export const editOptionsHandler: RequestHandler = async (req, res) => {
     }
 
     // FIXME : can refactor with using reduce
-    type newOptionsSignature = {
-      [key: string]: string;
+    type NewOptionsSignature = {
+      [key: string]: boolean | string[] | undefined;
     };
-    const newOptions: newOptionsSignature = {};
-    const booleanFields = [
+
+    type OptionsKey = keyof EditOptionsHandlerType["options"];
+    const booleanFields: OptionsKey[] = [
       "chatting",
       "beforeDepart",
       "notice",
       "advertisement",
     ];
-    booleanFields.map((field: string) => {
-      if (options[field] === true || options[field] === false) {
-        newOptions[field] = options[field];
-      }
-    });
+
+    const newOptions = booleanFields.reduce<NewOptionsSignature>(
+      (acc, field) => {
+        if (options[field] === true || options[field] === false) {
+          acc[field] = options[field];
+        }
+        return acc;
+      },
+      {}
+    );
     if (options.keywords) {
       newOptions.keywords = options.keywords;
     }

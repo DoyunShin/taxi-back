@@ -6,7 +6,7 @@ import {
   optionsHandler,
   editOptionsHandler,
 } from "@/services/notifications";
-import { validatorMiddleware, authMiddleware } from "@/middlewares";
+import { authMiddleware } from "@/middlewares";
 
 const router = express.Router();
 
@@ -17,7 +17,6 @@ router.use(authMiddleware);
 router.post(
   "/registerDeviceToken",
   validateBody(notificationZod.registerDeviceTokenHandler),
-  validatorMiddleware,
   registerDeviceTokenHandler
 );
 
@@ -26,7 +25,6 @@ router.get("/options", optionsHandler);
 router.post(
   "/editOptions",
   validateBody(notificationZod.editOptionsHandler),
-  validatorMiddleware,
   editOptionsHandler
 );
 
